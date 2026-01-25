@@ -8,10 +8,9 @@ import { getDailySummary } from "../services/dailySummary";
 import { renderDailySummary } from "../components/DailySummaryModal";
 
 export async function renderDashboard(container) {
-  const sales = (await getAllSales()) || [];
+  const sales = await getAllSales();
 
   const totalSales = sales.reduce((sum, s) => sum + (s.amount || 0), 0);
-
   const creditTotal = sales
     .filter(s => s.paymentMethod === "credit")
     .reduce((sum, s) => sum + (s.amount || 0), 0);
@@ -25,7 +24,6 @@ export async function renderDashboard(container) {
       <h1>Dashboard</h1>
 
       <div class="cards">
-
         <div class="card">
           <p>Total Sales</p>
           <h2>₹${totalSales}</h2>
@@ -51,41 +49,38 @@ export async function renderDashboard(container) {
           <h2>${mhi.score}</h2>
           <small>${mhi.label}</small>
         </div>
+
         <div class="card">
           <p>Smart Insights</p>
           <ul>
-           ${insights.map(i => `<li>• ${i}</li>`).join("")}
+            ${insights.map(i => `<li>• ${i}</li>`).join("")}
           </ul>
         </div>
-
       </div>
     </section>
   `;
 
-  // 1️⃣ Render HTML
   container.innerHTML = renderLayout(content);
 
-  // 2️⃣ Animate numeric values
   container.querySelectorAll(".card h2").forEach(el => {
     const value = parseInt(el.textContent.replace(/\D/g, ""), 10);
-    if (!isNaN(value)) {
-      animateNumber(el, value);
-    }
+    if (!isNaN(value)) animateNumber(el, value);
   });
-}
-// ===== DAILY SUMMARY POPUP =====
-const today = new Date().toLocaleDateString();
-const lastShown = localStorage.getItem("lastSummaryDate");
 
-if (lastShown !== today) {
-  const summary = await getDailySummary();
-  document.body.insertAdjacentHTML(
-    "beforeend",
-    renderDailySummary(summary)
-  );
+  // DAILY SUMMARY (SAFE LOCATION)
+  const today = new Date().toLocaleDateString();
+  const lastShown = localStorage.getItem("lastSummaryDate");
 
-  document.getElementById("close-summary").onclick = () => {
-    document.querySelector(".daily-summary-overlay").remove();
-    localStorage.setItem("lastSummaryDate", today);
-  };
+  if (lastShown !== today) {
+    const summary = await getDailySummary();
+    document.body.insertAdjacentHTML(
+      "beforeend",
+      renderDailySummary(summary)
+    );
+
+    document.getElementById("close-summary").onclick = () => {
+      document.querySelector(".daily-summary-overlay").remove();
+      localStorage.setItem("lastSummaryDate", today);
+    };
+  }
 }

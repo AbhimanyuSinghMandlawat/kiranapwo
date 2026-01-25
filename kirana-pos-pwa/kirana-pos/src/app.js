@@ -8,39 +8,27 @@ import { renderStock } from "./pages/Stock";
 export async function navigate(page) {
   const app = document.getElementById("app");
 
-  switch (page) {
-    case "dashboard":
-      await renderDashboard(app);
-      break;
+  const map = {
+    dashboard: renderDashboard,
+    "add-sale": renderAddSale,
+    reports: renderReports,
+    credit: renderCreditScore,
+    ledger: renderCreditLedger,
+    stock: renderStock
+  };
 
-    case "add-sale":
-      await renderAddSale(app);
-      break;
-
-    case "reports":
-      await renderReports(app);
-      break;
-
-    case "credit":
-      await renderCreditScore(app);
-      break;
-
-    case "ledger":
-      await renderCreditLedger(app);
-      break;
-    case "stock":
-      await renderStock(app);
-      break;
-
-    default:
-      await renderDashboard(app);
-  }
-
+  await (map[page] || renderDashboard)(app);
   attachNavEvents();
 }
 
 export function attachNavEvents() {
   document.querySelectorAll("[data-page]").forEach(btn => {
-    btn.onclick = () => navigate(btn.dataset.page);
+    btn.onclick = () => {
+      document
+        .querySelectorAll("[data-page]")
+        .forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
+      navigate(btn.dataset.page);
+    };
   });
 }
