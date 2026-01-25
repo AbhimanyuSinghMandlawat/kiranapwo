@@ -1,0 +1,20 @@
+:root {
+  --bg-main: #0F172A;
+  --bg-sidebar: #0B1220;
+
+  --primary: #22C55E;
+  --secondary: #14B8A6;
+
+  --text-primary: #E5E7EB;
+  --text-muted: #9CA3AF;
+
+  --success: #22C55E;
+  --warning: #F59E0B;
+  --danger: #EF4444;
+
+  --card-bg: rgba(255, 255, 255, 0.06);
+  --card-border: rgba(255, 255, 255, 0.12);
+
+  --radius: 18px;
+  --blur: blur(16px);
+}
