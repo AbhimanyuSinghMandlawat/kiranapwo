@@ -8,7 +8,7 @@ import { searchStock } from "../utils/helpers";
 // STATE
 // ===============================
 let cartItems = [];
-let saleMode = "amount"; // "amount" | "items"
+let saleMode = "amount";
 
 // ===============================
 // CART HELPERS
@@ -37,7 +37,7 @@ function removeFromCart(id) {
 }
 
 function calculateTotal() {
-  return cartItems.reduce((s, i) => s + i.price * i.qty, 0);
+  return cartItems.reduce((sum, i) => sum + i.price * i.qty, 0);
 }
 
 // ===============================
@@ -72,7 +72,7 @@ export async function renderAddSale(container) {
             <p><strong>Total:</strong> ₹<span id="cart-total">0</span></p>
           </div>
 
-          <!-- Settlement ONLY for Quick Sale -->
+          <!-- Settlement only for Quick Sale -->
           <div id="settlement-section" class="settlement-row">
             <input type="checkbox" id="is-settlement" />
             <span>This is a credit settlement</span>
@@ -80,18 +80,18 @@ export async function renderAddSale(container) {
 
           <label>Payment Method</label>
           <div class="payment-options">
-            <button type="button" data-method="cash" class="btn-option">Cash</button>
-            <button type="button" data-method="upi" class="btn-option">UPI</button>
-            <button type="button" data-method="card" class="btn-option">Card</button>
-            <button type="button" data-method="credit" class="btn-option">Credit</button>
+            <button type="button" class="btn-option" data-method="cash">Cash</button>
+            <button type="button" class="btn-option" data-method="upi">UPI</button>
+            <button type="button" class="btn-option" data-method="card">Card</button>
+            <button type="button" class="btn-option" data-method="credit">Credit</button>
           </div>
 
           <label id="customer-label" style="display:none">Customer Name</label>
-          <input id="customer" style="display:none" />
+          <input id="customer" type="text" style="display:none" />
 
           <input type="hidden" id="payment" />
 
-          <button class="btn-primary">Save</button>
+          <button class="btn-primary full-width">Save</button>
         </form>
       </div>
     </section>
@@ -100,7 +100,7 @@ export async function renderAddSale(container) {
   container.innerHTML = renderLayout(content);
 
   // ===============================
-  // MODE TOGGLE
+  // MODE SWITCH
   // ===============================
   const modeAmount = document.getElementById("mode-amount");
   const modeItems = document.getElementById("mode-items");
@@ -129,10 +129,34 @@ export async function renderAddSale(container) {
   };
 
   // ===============================
-  // SEARCH
+  // PAYMENT LOGIC (FIXED)
   // ===============================
-  const searchInput = document.getElementById("stock-search");
-  const resultsDiv = document.getElementById("search-results");
+  const paymentInput = document.getElementById("payment");
+  const customerInput = document.getElementById("customer");
+  const customerLabel = document.getElementById("customer-label");
+
+  document.querySelectorAll(".payment-options .btn-option").forEach(btn => {
+    btn.onclick = () => {
+      document
+        .querySelectorAll(".payment-options .btn-option")
+        .forEach(b => b.classList.remove("active"));
+
+      btn.classList.add("active");
+      paymentInput.value = btn.dataset.method;
+
+      if (btn.dataset.method === "credit") {
+        customerInput.style.display = "block";
+        customerLabel.style.display = "block";
+      } else {
+        customerInput.style.display = "none";
+        customerLabel.style.display = "none";
+      }
+    };
+  });
+
+  // ===============================
+  // CART RENDER
+  // ===============================
   const cartDiv = document.getElementById("cart-list");
   const cartTotal = document.getElementById("cart-total");
 
@@ -143,61 +167,68 @@ export async function renderAddSale(container) {
         : cartItems
             .map(
               i => `
-              <div class="cart-row">
-                <span>${i.name}</span>
-                <div class="cart-controls">
-                  <button data-dec="${i.itemId}">−</button>
-                  <span>${i.qty}</span>
-                  <button data-inc="${i.itemId}">+</button>
-                </div>
-              </div>`
+                <div class="cart-row">
+                  <span>${i.name}</span>
+                  <div class="cart-controls">
+                    <button data-dec="${i.itemId}">−</button>
+                    <span>${i.qty}</span>
+                    <button data-inc="${i.itemId}">+</button>
+                  </div>
+                </div>`
             )
             .join("");
 
     cartTotal.textContent = calculateTotal();
 
-    cartDiv.querySelectorAll("[data-inc]").forEach(b => {
-      b.onclick = () => {
-        const item = stock.find(s => s.id === b.dataset.inc);
+    cartDiv.querySelectorAll("[data-inc]").forEach(btn => {
+      btn.onclick = () => {
+        const item = stock.find(s => s.id === btn.dataset.inc);
         addToCart(item, 1);
         renderCart();
       };
     });
 
-    cartDiv.querySelectorAll("[data-dec]").forEach(b => {
-      b.onclick = () => {
-        const item = cartItems.find(i => i.itemId === b.dataset.dec);
+    cartDiv.querySelectorAll("[data-dec]").forEach(btn => {
+      btn.onclick = () => {
+        const item = cartItems.find(i => i.itemId === btn.dataset.dec);
         item.qty--;
-        if (item.qty === 0) removeFromCart(item.itemId);
+        if (item.qty <= 0) removeFromCart(item.itemId);
         renderCart();
       };
     });
   }
 
+  // ===============================
+  // SEARCH (FIXED & WORKING)
+  // ===============================
+  const searchInput = document.getElementById("stock-search");
+  const resultsDiv = document.getElementById("search-results");
+
   searchInput.oninput = () => {
-    const q = searchInput.value.trim();
-    if (!q) {
+    const query = searchInput.value.trim();
+    if (!query) {
       resultsDiv.innerHTML = "";
       return;
     }
 
-    const results = searchStock(stock, q);
+    const results = searchStock(stock, query);
 
     resultsDiv.innerHTML = `
       <div class="search-dropdown">
         ${results
           .map(
-            i => `
+            item => `
             <div class="search-item">
               <div>
-                <strong>${i.name}</strong>
-                <small>₹${i.price}</small>
+                <strong>${item.name}</strong>
+                <small>₹${item.price}</small>
               </div>
-              <button data-id="${i.id}">Add</button>
+              <button data-id="${item.id}">Add</button>
             </div>`
           )
           .join("")}
-      </div>`;
+      </div>
+    `;
 
     resultsDiv.querySelectorAll("button").forEach(btn => {
       btn.onclick = () => {
@@ -222,7 +253,7 @@ export async function renderAddSale(container) {
         : Number(document.getElementById("amount").value);
 
     if (!amount || amount <= 0) {
-      showToast("Invalid amount", "error");
+      showToast("Enter valid amount", "error");
       return;
     }
 
@@ -230,12 +261,17 @@ export async function renderAddSale(container) {
       id: crypto.randomUUID(),
       amount,
       items: saleMode === "items" ? cartItems : [],
+      paymentMethod: paymentInput.value,
+      customerName: customerInput.value || null,
       date: new Date().toLocaleDateString(),
       timestamp: Date.now()
     };
 
-    saleMode === "items" ? await processSale(sale) : await saveSale(sale);
-    showToast("Saved", "success");
+    saleMode === "items"
+      ? await processSale(sale)
+      : await saveSale(sale);
+
+    showToast("Transaction saved", "success");
     navigate("dashboard");
   };
 }
