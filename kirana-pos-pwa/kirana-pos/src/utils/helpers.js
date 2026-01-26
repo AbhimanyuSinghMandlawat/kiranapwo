@@ -1,19 +1,23 @@
 // ===============================
 // STOCK SEARCH UTILITY
 // ===============================
-
-/**
- * Filters stock items by name (prefix-based, Amazon-style)
- * @param {Array} stock - full stock list
- * @param {String} query - search text
- * @returns {Array} filtered stock list (max 6)
- */
-export function searchStock(stock, query) {
-  if (!query || !query.trim()) return [];
+export function searchStock(stockList, query) {
+  if (!query) return [];
 
   const q = query.toLowerCase();
 
-  return stock
-    .filter(item => item.name.toLowerCase().startsWith(q))
-    .slice(0, 6);
+  // 1️⃣ Prefix match first (Amazon-style)
+  const startsWith = stockList.filter(item =>
+    item.name.toLowerCase().startsWith(q)
+  );
+
+  // 2️⃣ Contains match (fallback)
+  const includes = stockList.filter(
+    item =>
+      !item.name.toLowerCase().startsWith(q) &&
+      item.name.toLowerCase().includes(q)
+  );
+
+  // 3️⃣ Merge + limit
+  return [...startsWith, ...includes].slice(0, 5);
 }
