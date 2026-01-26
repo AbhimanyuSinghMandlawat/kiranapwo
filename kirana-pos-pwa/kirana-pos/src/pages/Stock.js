@@ -8,6 +8,7 @@ import {
 import { showToast } from "../utils/toast";
 import { showConfirmModal } from "../components/ConfirmModal";
 import { showStockEditModal } from "../components/StockEditModal";
+import { attachNavEvents } from "../app"; // ✅ REQUIRED
 
 export async function renderStock(container) {
   const stockItems = await getAllStock();
@@ -71,9 +72,10 @@ export async function renderStock(container) {
   `;
 
   container.innerHTML = renderLayout(content);
+  attachNavEvents(); // ✅ critical after layout render
 
   /* =========================
-     ADD NEW ITEM (PRICE REQUIRED)
+     ADD NEW ITEM
   ========================= */
   document.getElementById("add-item").onclick = async () => {
     const name = document.getElementById("item-name").value.trim();
@@ -102,17 +104,17 @@ export async function renderStock(container) {
     await addStockItem({
       id: crypto.randomUUID(),
       name,
-      price,              // ✅ FIXED PRICE STORED
+      price,
       quantity,
       threshold
     });
 
     showToast("Stock item added", "success", 3000);
-    renderStock(container);
+    await renderStock(container);
   };
 
   /* =========================
-     + ADD STOCK (QUANTITY ONLY)
+     + ADD STOCK
   ========================= */
   document.querySelectorAll(".add-btn").forEach(btn => {
     btn.onclick = () => {
@@ -125,14 +127,14 @@ export async function renderStock(container) {
         onConfirm: async qty => {
           await updateStockQuantity(item.id, item.quantity + qty);
           showToast("Stock updated", "success", 3000);
-          renderStock(container);
+          await renderStock(container);
         }
       });
     };
   });
 
   /* =========================
-     EDIT ALERT LEVEL (SAFE)
+     EDIT ALERT
   ========================= */
   document.querySelectorAll(".edit-btn").forEach(btn => {
     btn.onclick = () => {
@@ -149,14 +151,14 @@ export async function renderStock(container) {
           });
 
           showToast("Alert updated", "success", 3000);
-          renderStock(container);
+          await renderStock(container);
         }
       });
     };
   });
 
   /* =========================
-     REMOVE ITEM (CONFIRM)
+     REMOVE ITEM
   ========================= */
   document.querySelectorAll(".remove-btn").forEach(btn => {
     btn.onclick = () => {
@@ -168,7 +170,7 @@ export async function renderStock(container) {
         onConfirm: async () => {
           await removeStockItem(item.id);
           showToast("Item removed", "warning", 3000);
-          renderStock(container);
+          await renderStock(container);
         }
       });
     };

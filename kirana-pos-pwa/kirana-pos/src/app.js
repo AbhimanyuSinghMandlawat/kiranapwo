@@ -17,7 +17,10 @@ export async function navigate(page) {
     stock: renderStock
   };
 
+  // ✅ ALWAYS await render
   await (map[page] || renderDashboard)(app);
+
+  // ✅ ALWAYS reattach nav after DOM replace
   attachNavEvents();
 }
 
@@ -27,6 +30,7 @@ export function attachNavEvents() {
       document
         .querySelectorAll("[data-page]")
         .forEach(b => b.classList.remove("active"));
+
       btn.classList.add("active");
       navigate(btn.dataset.page);
     };
