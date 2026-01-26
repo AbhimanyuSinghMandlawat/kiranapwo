@@ -128,11 +128,14 @@ body {
   justify-content: center;
   padding: 24px;
   position: relative;
+  overflow: hidden;
 }
 
 .glass-card {
   width: 100%;
-  max-width: 420px;
+  max-width: 520px;
+  max-height: 90vh;
+  overflow: hidden;
   padding: 28px;
   background: var(--card-bg);
   backdrop-filter: var(--blur);
@@ -743,4 +746,24 @@ pointer-events: auto;
 
 .cart-controls .danger {
   background: #ef4444;
+}
+/* Settlement row alignment */
+.settlement-row {
+display: flex;
+align-items: center;
+gap: 10px;
+margin: 14px 0;
+font-size: 13px;
+color: var(--text-muted);
+}
+
+
+.settlement-row input {
+width: auto;
+}
+
+
+/* Mode buttons spacing */
+.mode-switch {
+margin-bottom: 12px;
 }

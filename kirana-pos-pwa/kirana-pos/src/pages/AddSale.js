@@ -11,7 +11,7 @@ let cartItems = [];
 let saleMode = "amount"; // "amount" | "items"
 
 // ===============================
-// UI CLEANUP (CRITICAL FOR NAV)
+// UI CLEANUP
 // ===============================
 function cleanupAddSaleUI() {
   const resultsDiv = document.getElementById("search-results");
@@ -64,16 +64,7 @@ function removeFromCart(itemId) {
 function calculateTotal() {
   return cartItems.reduce((sum, i) => sum + i.qty * i.price, 0);
 }
-function handleOutsideSearchClick(e) {
-  const dropdown = document.getElementById("search-results");
-  const searchInput = document.getElementById("stock-search");
 
-  if (!searchInput || !dropdown) return;
-
-  if (!e.target.closest("#stock-search")) {
-    dropdown.innerHTML = "";
-  }
-}
 // ===============================
 // RENDER PAGE
 // ===============================
@@ -85,7 +76,7 @@ export async function renderAddSale(container) {
       <div class="glass-card">
         <h1>Add Transaction</h1>
 
-        <div style="margin-bottom:12px;">
+        <div class="mode-switch">
           <button type="button" id="mode-amount" class="btn-option active">
             Quick Sale
           </button>
@@ -95,6 +86,7 @@ export async function renderAddSale(container) {
         </div>
 
         <form id="sale-form">
+
           <label>Amount (₹)</label>
           <input id="amount" type="number" placeholder="Enter amount" />
 
@@ -102,18 +94,18 @@ export async function renderAddSale(container) {
             <input id="stock-search" placeholder="Search item..." />
             <div id="search-results"></div>
 
-            <h4 style="margin-top:12px;">Cart</h4>
+            <h4>Cart</h4>
             <div id="cart-list"></div>
 
-            <p style="margin-top:8px;">
+            <p>
               <strong>Total:</strong> ₹<span id="cart-total">0</span>
             </p>
           </div>
 
-          <label>
+          <div class="settlement-row">
             <input type="checkbox" id="is-settlement" />
-            This is a credit settlement
-          </label>
+            <span>This is a credit settlement</span>
+          </div>
 
           <label>Profit Margin (%)</label>
           <input id="margin" type="number" value="10" />
@@ -141,14 +133,9 @@ export async function renderAddSale(container) {
 
   container.innerHTML = renderLayout(content);
 
-  // Prevent ENTER breaking SPA
-  const saleForm = document.getElementById("sale-form");
-
-  saleForm.addEventListener("keydown", e => {
-    const tag = e.target.tagName.toLowerCase();
-
-  // Block Enter ONLY inside inputs (not links / buttons / sidebar)
-    if (e.key === "Enter" && tag === "input") {
+  // Prevent Enter key form submit
+  document.getElementById("sale-form").addEventListener("keydown", e => {
+    if (e.key === "Enter" && e.target.tagName === "INPUT") {
       e.preventDefault();
     }
   });
@@ -166,6 +153,7 @@ export async function renderAddSale(container) {
     modeAmountBtn.classList.add("active");
     modeItemsBtn.classList.remove("active");
     itemSection.style.display = "none";
+    amountInput.style.display = "block";
     amountInput.readOnly = false;
     amountInput.value = "";
   };
@@ -175,8 +163,7 @@ export async function renderAddSale(container) {
     modeItemsBtn.classList.add("active");
     modeAmountBtn.classList.remove("active");
     itemSection.style.display = "block";
-    amountInput.readOnly = true;
-    amountInput.value = calculateTotal();
+    amountInput.style.display = "none";
     cartItems = [];
     renderCart();
   };
@@ -189,6 +176,14 @@ export async function renderAddSale(container) {
   const customerLabel = document.getElementById("customer-label");
   const settlementCheckbox = document.getElementById("is-settlement");
 
+  function updateCustomerField() {
+    const needsCustomer =
+      paymentInput.value === "credit" || settlementCheckbox.checked;
+
+    customerInput.style.display = needsCustomer ? "block" : "none";
+    customerLabel.style.display = needsCustomer ? "block" : "none";
+  }
+
   document.querySelectorAll("[data-method]").forEach(btn => {
     btn.onclick = () => {
       document.querySelectorAll("[data-method]").forEach(b =>
@@ -196,14 +191,7 @@ export async function renderAddSale(container) {
       );
       btn.classList.add("active");
       paymentInput.value = btn.dataset.method;
-
-      if (btn.dataset.method === "credit") {
-        customerInput.style.display = "block";
-        customerLabel.style.display = "block";
-      } else {
-        customerInput.style.display = "none";
-        customerLabel.style.display = "none";
-      }
+      updateCustomerField();
     };
   });
 
@@ -214,6 +202,7 @@ export async function renderAddSale(container) {
       );
       paymentInput.value = "";
     }
+    updateCustomerField();
   };
 
   // ===============================
@@ -228,25 +217,25 @@ export async function renderAddSale(container) {
     if (cartItems.length === 0) {
       cartDiv.innerHTML = `<p style="opacity:0.6">No items added</p>`;
       cartTotal.textContent = "0";
-      amountInput.value = "0";
       return;
     }
 
-    cartDiv.innerHTML = cartItems.map(item => `
-      <div class="cart-row">
-        <span>${item.name}</span>
-        <div class="cart-controls">
-          <button data-dec="${item.itemId}">−</button>
-          <span>${item.qty}</span>
-          <button data-inc="${item.itemId}">+</button>
-          <button data-remove="${item.itemId}" class="danger">✕</button>
+    cartDiv.innerHTML = cartItems.map(item => {
+      const maxQty = stock.find(s => s.id === item.itemId).quantity;
+      return `
+        <div class="cart-row">
+          <span>${item.name}</span>
+          <div class="cart-controls">
+            <button data-dec="${item.itemId}">−</button>
+            <span>${item.qty}</span>
+            <button data-inc="${item.itemId}" ${item.qty >= maxQty ? "disabled" : ""}>+</button>
+            <button data-remove="${item.itemId}" class="danger">✕</button>
+          </div>
         </div>
-      </div>
-    `).join("");
+      `;
+    }).join("");
 
-    const total = calculateTotal();
-    cartTotal.textContent = total;
-    amountInput.value = total;
+    cartTotal.textContent = calculateTotal();
 
     cartDiv.querySelectorAll("[data-inc]").forEach(btn => {
       btn.onclick = () => {
@@ -275,7 +264,7 @@ export async function renderAddSale(container) {
   }
 
   // ===============================
-  // SEARCH DROPDOWN
+  // SEARCH (Amazon-style)
   // ===============================
   searchInput.oninput = () => {
     const query = searchInput.value.trim();
@@ -333,18 +322,13 @@ export async function renderAddSale(container) {
       return;
     }
 
-    if (!paymentMethod) {
+    if (!paymentMethod && !isSettlement) {
       showToast("Select payment method", "error");
       return;
     }
 
     if ((paymentMethod === "credit" || isSettlement) && !customerName) {
       showToast("Customer name required", "error");
-      return;
-    }
-
-    if (isSettlement && paymentMethod === "credit") {
-      showToast("For settlement select Cash / UPI / Card", "error");
       return;
     }
 
@@ -355,7 +339,7 @@ export async function renderAddSale(container) {
       id: crypto.randomUUID(),
       amount,
       items: saleMode === "items" ? cartItems : [],
-      paymentMethod,
+      paymentMethod: paymentMethod || "settlement",
       customerName: customerName || null,
       transactionType: isSettlement ? "settlement" : "sale",
       profitMargin,
@@ -377,9 +361,7 @@ export async function renderAddSale(container) {
     cleanupAddSaleUI();
     cartItems = [];
     saleMode = "amount";
-    container.addEventListener("click", handleOutsideSearchClick);
 
     setTimeout(() => navigate("dashboard"), 300);
   };
-  
 }
