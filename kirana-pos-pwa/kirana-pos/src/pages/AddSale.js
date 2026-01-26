@@ -4,15 +4,16 @@ import { navigate } from "../app";
 import { showToast } from "../utils/toast";
 import { searchStock } from "../utils/helpers";
 
-// ===============================
-// STATE
-// ===============================
+/* ===============================
+   STATE
+=============================== */
 let cartItems = [];
 let saleMode = "amount";
+let selectedPayment = null;
 
-// ===============================
-// CART HELPERS
-// ===============================
+/* ===============================
+   CART HELPERS
+=============================== */
 function addToCart(stockItem, qty = 1) {
   const existing = cartItems.find(i => i.itemId === stockItem.id);
 
@@ -40,13 +41,13 @@ function calculateTotal() {
   return cartItems.reduce((sum, i) => sum + i.price * i.qty, 0);
 }
 
-// ===============================
-// RENDER PAGE
-// ===============================
+/* ===============================
+   RENDER
+=============================== */
 export async function renderAddSale(container) {
   const stock = await getAllStock();
 
-  const content = `
+  container.innerHTML = renderLayout(`
     <section class="add-sale">
       <div class="glass-card">
         <h1>Add Transaction</h1>
@@ -57,7 +58,6 @@ export async function renderAddSale(container) {
         </div>
 
         <form id="sale-form">
-
           <div id="amount-section">
             <label>Amount (₹)</label>
             <input id="amount" type="number" placeholder="Enter amount" />
@@ -72,7 +72,6 @@ export async function renderAddSale(container) {
             <p><strong>Total:</strong> ₹<span id="cart-total">0</span></p>
           </div>
 
-          <!-- Settlement only for Quick Sale -->
           <div id="settlement-section" class="settlement-row">
             <input type="checkbox" id="is-settlement" />
             <span>This is a credit settlement</span>
@@ -89,38 +88,28 @@ export async function renderAddSale(container) {
           <label id="customer-label" style="display:none">Customer Name</label>
           <input id="customer" type="text" style="display:none" />
 
-          <input type="hidden" id="payment" />
-
-          <button class="btn-primary full-width">Save</button>
+          <button class="btn-primary full-width" type="submit">Save</button>
         </form>
       </div>
     </section>
-  `;
+  `);
 
-  container.innerHTML = renderLayout(content);
-
-  // ===============================
-  // MODE SWITCH
-  // ===============================
-  const modeAmount = document.getElementById("mode-amount");
-  const modeItems = document.getElementById("mode-items");
+  /* ===============================
+     MODE SWITCH
+  =============================== */
   const amountSection = document.getElementById("amount-section");
   const itemSection = document.getElementById("item-sale-section");
   const settlementSection = document.getElementById("settlement-section");
 
-  modeAmount.onclick = () => {
+  document.getElementById("mode-amount").onclick = () => {
     saleMode = "amount";
-    modeAmount.classList.add("active");
-    modeItems.classList.remove("active");
     amountSection.style.display = "block";
     itemSection.style.display = "none";
     settlementSection.style.display = "flex";
   };
 
-  modeItems.onclick = () => {
+  document.getElementById("mode-items").onclick = () => {
     saleMode = "items";
-    modeItems.classList.add("active");
-    modeAmount.classList.remove("active");
     amountSection.style.display = "none";
     itemSection.style.display = "block";
     settlementSection.style.display = "none";
@@ -128,23 +117,23 @@ export async function renderAddSale(container) {
     renderCart();
   };
 
-  // ===============================
-  // PAYMENT LOGIC (FIXED)
-  // ===============================
-  const paymentInput = document.getElementById("payment");
+  /* ===============================
+     PAYMENT METHOD
+  =============================== */
   const customerInput = document.getElementById("customer");
   const customerLabel = document.getElementById("customer-label");
+  const settlementCheckbox = document.getElementById("is-settlement");
 
   document.querySelectorAll(".payment-options .btn-option").forEach(btn => {
     btn.onclick = () => {
-      document
-        .querySelectorAll(".payment-options .btn-option")
-        .forEach(b => b.classList.remove("active"));
-
+      document.querySelectorAll(".btn-option").forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
-      paymentInput.value = btn.dataset.method;
+      selectedPayment = btn.dataset.method;
 
-      if (btn.dataset.method === "credit") {
+      if (
+        selectedPayment === "credit" ||
+        settlementCheckbox.checked
+      ) {
         customerInput.style.display = "block";
         customerLabel.style.display = "block";
       } else {
@@ -154,9 +143,19 @@ export async function renderAddSale(container) {
     };
   });
 
-  // ===============================
-  // CART RENDER
-  // ===============================
+  settlementCheckbox.onchange = () => {
+    if (settlementCheckbox.checked) {
+      customerInput.style.display = "block";
+      customerLabel.style.display = "block";
+    } else if (selectedPayment !== "credit") {
+      customerInput.style.display = "none";
+      customerLabel.style.display = "none";
+    }
+  };
+
+  /* ===============================
+     CART
+  =============================== */
   const cartDiv = document.getElementById("cart-list");
   const cartTotal = document.getElementById("cart-total");
 
@@ -164,26 +163,22 @@ export async function renderAddSale(container) {
     cartDiv.innerHTML =
       cartItems.length === 0
         ? "<p>No items added</p>"
-        : cartItems
-            .map(
-              i => `
-                <div class="cart-row">
-                  <span>${i.name}</span>
-                  <div class="cart-controls">
-                    <button data-dec="${i.itemId}">−</button>
-                    <span>${i.qty}</span>
-                    <button data-inc="${i.itemId}">+</button>
-                  </div>
-                </div>`
-            )
-            .join("");
+        : cartItems.map(i => `
+          <div class="cart-row">
+            <span>${i.name}</span>
+            <div class="cart-controls">
+              <button data-dec="${i.itemId}">−</button>
+              <span>${i.qty}</span>
+              <button data-inc="${i.itemId}">+</button>
+            </div>
+          </div>
+        `).join("");
 
     cartTotal.textContent = calculateTotal();
 
     cartDiv.querySelectorAll("[data-inc]").forEach(btn => {
       btn.onclick = () => {
-        const item = stock.find(s => s.id === btn.dataset.inc);
-        addToCart(item, 1);
+        addToCart(stock.find(s => s.id === btn.dataset.inc), 1);
         renderCart();
       };
     });
@@ -198,42 +193,32 @@ export async function renderAddSale(container) {
     });
   }
 
-  // ===============================
-  // SEARCH (FIXED & WORKING)
-  // ===============================
+  /* ===============================
+     SEARCH
+  =============================== */
   const searchInput = document.getElementById("stock-search");
   const resultsDiv = document.getElementById("search-results");
 
   searchInput.oninput = () => {
-    const query = searchInput.value.trim();
-    if (!query) {
-      resultsDiv.innerHTML = "";
-      return;
-    }
+    const q = searchInput.value.trim();
+    if (!q) return (resultsDiv.innerHTML = "");
 
-    const results = searchStock(stock, query);
+    const results = searchStock(stock, q);
 
     resultsDiv.innerHTML = `
       <div class="search-dropdown">
-        ${results
-          .map(
-            item => `
-            <div class="search-item">
-              <div>
-                <strong>${item.name}</strong>
-                <small>₹${item.price}</small>
-              </div>
-              <button data-id="${item.id}">Add</button>
-            </div>`
-          )
-          .join("")}
+        ${results.map(i => `
+          <div class="search-item">
+            <div><strong>${i.name}</strong><small>₹${i.price}</small></div>
+            <button data-id="${i.id}">Add</button>
+          </div>
+        `).join("")}
       </div>
     `;
 
     resultsDiv.querySelectorAll("button").forEach(btn => {
       btn.onclick = () => {
-        const item = stock.find(s => s.id === btn.dataset.id);
-        addToCart(item, 1);
+        addToCart(stock.find(s => s.id === btn.dataset.id));
         renderCart();
         searchInput.value = "";
         resultsDiv.innerHTML = "";
@@ -241,19 +226,28 @@ export async function renderAddSale(container) {
     });
   };
 
-  // ===============================
-  // SUBMIT
-  // ===============================
+  /* ===============================
+     SUBMIT
+  =============================== */
   document.getElementById("sale-form").onsubmit = async e => {
     e.preventDefault();
 
+    if (!selectedPayment) {
+      showToast("Select payment method", "error");
+      return;
+    }
+
+    const isSettlement = settlementCheckbox.checked;
     const amount =
-      saleMode === "items"
-        ? calculateTotal()
-        : Number(document.getElementById("amount").value);
+      saleMode === "items" ? calculateTotal() : Number(document.getElementById("amount").value);
 
     if (!amount || amount <= 0) {
-      showToast("Enter valid amount", "error");
+      showToast("Invalid amount", "error");
+      return;
+    }
+
+    if ((selectedPayment === "credit" || isSettlement) && !customerInput.value.trim()) {
+      showToast("Customer name required", "error");
       return;
     }
 
@@ -261,15 +255,14 @@ export async function renderAddSale(container) {
       id: crypto.randomUUID(),
       amount,
       items: saleMode === "items" ? cartItems : [],
-      paymentMethod: paymentInput.value,
+      paymentMethod: selectedPayment,
       customerName: customerInput.value || null,
+      transactionType: isSettlement ? "settlement" : "sale",
       date: new Date().toLocaleDateString(),
       timestamp: Date.now()
     };
 
-    saleMode === "items"
-      ? await processSale(sale)
-      : await saveSale(sale);
+    saleMode === "items" ? await processSale(sale) : await saveSale(sale);
 
     showToast("Transaction saved", "success");
     navigate("dashboard");
