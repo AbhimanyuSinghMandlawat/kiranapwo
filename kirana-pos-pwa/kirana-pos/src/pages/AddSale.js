@@ -3,12 +3,13 @@ import { saveSale, getAllStock, processSale } from "../services/db";
 import { navigate } from "../app";
 import { showToast } from "../utils/toast";
 import { searchStock } from "../utils/helpers";
+import { getCreditLedger } from "../services/ledger";
 
 /* ===============================
    STATE
 =============================== */
 let cartItems = [];
-let saleMode = "amount";
+let saleMode = "amount"; // amount | items
 let selectedPayment = null;
 
 /* ===============================
@@ -42,7 +43,7 @@ function calculateTotal() {
 }
 
 /* ===============================
-   RENDER
+   RENDER PAGE
 =============================== */
 export async function renderAddSale(container) {
   const stock = await getAllStock();
@@ -58,6 +59,7 @@ export async function renderAddSale(container) {
         </div>
 
         <form id="sale-form">
+
           <div id="amount-section">
             <label>Amount (₹)</label>
             <input id="amount" type="number" placeholder="Enter amount" />
@@ -126,14 +128,14 @@ export async function renderAddSale(container) {
 
   document.querySelectorAll(".payment-options .btn-option").forEach(btn => {
     btn.onclick = () => {
-      document.querySelectorAll(".btn-option").forEach(b => b.classList.remove("active"));
+      document
+        .querySelectorAll(".payment-options .btn-option")
+        .forEach(b => b.classList.remove("active"));
+
       btn.classList.add("active");
       selectedPayment = btn.dataset.method;
 
-      if (
-        selectedPayment === "credit" ||
-        settlementCheckbox.checked
-      ) {
+      if (selectedPayment === "credit" || settlementCheckbox.checked) {
         customerInput.style.display = "block";
         customerLabel.style.display = "block";
       } else {
@@ -154,7 +156,7 @@ export async function renderAddSale(container) {
   };
 
   /* ===============================
-     CART
+     CART RENDER
   =============================== */
   const cartDiv = document.getElementById("cart-list");
   const cartTotal = document.getElementById("cart-total");
@@ -163,7 +165,9 @@ export async function renderAddSale(container) {
     cartDiv.innerHTML =
       cartItems.length === 0
         ? "<p>No items added</p>"
-        : cartItems.map(i => `
+        : cartItems
+            .map(
+              i => `
           <div class="cart-row">
             <span>${i.name}</span>
             <div class="cart-controls">
@@ -172,13 +176,16 @@ export async function renderAddSale(container) {
               <button data-inc="${i.itemId}">+</button>
             </div>
           </div>
-        `).join("");
+        `
+            )
+            .join("");
 
     cartTotal.textContent = calculateTotal();
 
     cartDiv.querySelectorAll("[data-inc]").forEach(btn => {
       btn.onclick = () => {
-        addToCart(stock.find(s => s.id === btn.dataset.inc), 1);
+        const item = stock.find(s => s.id === btn.dataset.inc);
+        addToCart(item, 1);
         renderCart();
       };
     });
@@ -207,12 +214,19 @@ export async function renderAddSale(container) {
 
     resultsDiv.innerHTML = `
       <div class="search-dropdown">
-        ${results.map(i => `
+        ${results
+          .map(
+            i => `
           <div class="search-item">
-            <div><strong>${i.name}</strong><small>₹${i.price}</small></div>
+            <div>
+              <strong>${i.name}</strong>
+              <small>₹${i.price}</small>
+            </div>
             <button data-id="${i.id}">Add</button>
           </div>
-        `).join("")}
+        `
+          )
+          .join("")}
       </div>
     `;
 
@@ -227,7 +241,7 @@ export async function renderAddSale(container) {
   };
 
   /* ===============================
-     SUBMIT
+     SUBMIT (WITH CORRECT SETTLEMENT LOGIC)
   =============================== */
   document.getElementById("sale-form").onsubmit = async e => {
     e.preventDefault();
@@ -238,10 +252,13 @@ export async function renderAddSale(container) {
     }
 
     const isSettlement = settlementCheckbox.checked;
-    const amount =
-      saleMode === "items" ? calculateTotal() : Number(document.getElementById("amount").value);
 
-    if (!amount || amount <= 0) {
+    const amount =
+      saleMode === "items"
+        ? calculateTotal()
+        : document.getElementById("amount").valueAsNumber;
+
+    if (!amount || isNaN(amount) || amount <= 0) {
       showToast("Invalid amount", "error");
       return;
     }
@@ -249,6 +266,26 @@ export async function renderAddSale(container) {
     if ((selectedPayment === "credit" || isSettlement) && !customerInput.value.trim()) {
       showToast("Customer name required", "error");
       return;
+    }
+
+    /* 🔒 CREDIT SETTLEMENT VALIDATION */
+    if (isSettlement) {
+      const ledger = await getCreditLedger();
+      const customer = customerInput.value.trim();
+
+      const entry = ledger.find(
+        l => l.customerName.toLowerCase() === customer.toLowerCase()
+      );
+
+      if (!entry) {
+        showToast("No pending credit for this customer", "error");
+        return;
+      }
+
+      if (amount > entry.balance) {
+        showToast(`Settlement exceeds pending amount (₹${entry.balance})`, "error");
+        return;
+      }
     }
 
     const sale = {
