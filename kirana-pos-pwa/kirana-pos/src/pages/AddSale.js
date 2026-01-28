@@ -4,25 +4,13 @@ import { navigate } from "../app";
 import { showToast } from "../utils/toast";
 import { searchStock } from "../utils/helpers";
 import { getCreditLedger } from "../services/ledger";
-import { getCustomerProfiles } from "../services/customerProfile";
-import { getCreditTrustScores } from "../services/creditScore";
 
 /* ===============================
    STATE
 =============================== */
 let cartItems = [];
-let saleMode = "amount"; // amount | items
+let saleMode = "amount";
 let selectedPayment = null;
-
-/* ===============================
-   CREDIT LIMIT LOGIC
-=============================== */
-function getCreditLimit(score) {
-  if (score >= 80) return 5000;
-  if (score >= 60) return 2000;
-  if (score >= 40) return 500;
-  return 0;
-}
 
 /* ===============================
    CART HELPERS
@@ -37,10 +25,6 @@ function addToCart(stockItem, qty = 1) {
     }
     existing.qty += qty;
   } else {
-    if (qty > stockItem.quantity) {
-      showToast("Not enough stock", "error");
-      return;
-    }
     cartItems.push({
       itemId: stockItem.id,
       name: stockItem.name,
@@ -103,8 +87,13 @@ export async function renderAddSale(container) {
             <button type="button" class="btn-option" data-method="credit">Credit</button>
           </div>
 
-          <label id="customer-label" style="display:none">Customer Name</label>
-          <input id="customer" type="text" style="display:none" />
+          <!-- ✅ CUSTOMER NAME ALWAYS AVAILABLE -->
+          <label>Customer Name</label>
+          <input
+            id="customer"
+            type="text"
+            placeholder="Enter customer name (optional but recommended)"
+          />
 
           <button class="btn-primary full-width" type="submit">Save</button>
         </form>
@@ -113,35 +102,39 @@ export async function renderAddSale(container) {
   `);
 
   /* ===============================
-     MODE SWITCH
+     MODE SWITCH (FIXED ACTIVE STATE)
   =============================== */
   const amountSection = document.getElementById("amount-section");
   const itemSection = document.getElementById("item-sale-section");
   const settlementSection = document.getElementById("settlement-section");
+  const modeAmountBtn = document.getElementById("mode-amount");
+  const modeItemsBtn = document.getElementById("mode-items");
 
-  document.getElementById("mode-amount").onclick = () => {
+  modeAmountBtn.onclick = () => {
     saleMode = "amount";
     amountSection.style.display = "block";
     itemSection.style.display = "none";
     settlementSection.style.display = "flex";
+
+    modeAmountBtn.classList.add("active");
+    modeItemsBtn.classList.remove("active");
   };
 
-  document.getElementById("mode-items").onclick = () => {
+  modeItemsBtn.onclick = () => {
     saleMode = "items";
     amountSection.style.display = "none";
     itemSection.style.display = "block";
     settlementSection.style.display = "none";
     cartItems = [];
     renderCart();
+
+    modeItemsBtn.classList.add("active");
+    modeAmountBtn.classList.remove("active");
   };
 
   /* ===============================
-     PAYMENT METHOD
+     PAYMENT METHOD SELECTION
   =============================== */
-  const customerInput = document.getElementById("customer");
-  const customerLabel = document.getElementById("customer-label");
-  const settlementCheckbox = document.getElementById("is-settlement");
-
   document.querySelectorAll(".payment-options .btn-option").forEach(btn => {
     btn.onclick = () => {
       document
@@ -150,26 +143,8 @@ export async function renderAddSale(container) {
 
       btn.classList.add("active");
       selectedPayment = btn.dataset.method;
-
-      if (selectedPayment === "credit" || settlementCheckbox.checked) {
-        customerInput.style.display = "block";
-        customerLabel.style.display = "block";
-      } else {
-        customerInput.style.display = "none";
-        customerLabel.style.display = "none";
-      }
     };
   });
-
-  settlementCheckbox.onchange = () => {
-    if (settlementCheckbox.checked) {
-      customerInput.style.display = "block";
-      customerLabel.style.display = "block";
-    } else if (selectedPayment !== "credit") {
-      customerInput.style.display = "none";
-      customerLabel.style.display = "none";
-    }
-  };
 
   /* ===============================
      CART RENDER
@@ -209,7 +184,7 @@ export async function renderAddSale(container) {
     cartDiv.querySelectorAll("[data-dec]").forEach(btn => {
       btn.onclick = () => {
         const item = cartItems.find(i => i.itemId === btn.dataset.dec);
-        item.qty -= 1;
+        item.qty--;
         if (item.qty <= 0) removeFromCart(item.itemId);
         renderCart();
       };
@@ -224,10 +199,7 @@ export async function renderAddSale(container) {
 
   searchInput.oninput = () => {
     const q = searchInput.value.trim();
-    if (!q) {
-      resultsDiv.innerHTML = "";
-      return;
-    }
+    if (!q) return (resultsDiv.innerHTML = "");
 
     const results = searchStock(stock, q);
 
@@ -236,14 +208,14 @@ export async function renderAddSale(container) {
         ${results
           .map(
             i => `
-          <div class="search-item ${i.quantity === 0 ? "disabled" : ""}">
-            <div>
-              <strong>${i.name}</strong>
-              <small>₹${i.price} · Stock: ${i.quantity}</small>
+            <div class="search-item">
+              <div>
+                <strong>${i.name}</strong>
+                <small>₹${i.price}</small>
+              </div>
+              <button data-id="${i.id}">Add</button>
             </div>
-            <button data-id="${i.id}" ${i.quantity === 0 ? "disabled" : ""}>Add</button>
-          </div>
-        `
+          `
           )
           .join("")}
       </div>
@@ -251,8 +223,7 @@ export async function renderAddSale(container) {
 
     resultsDiv.querySelectorAll("button").forEach(btn => {
       btn.onclick = () => {
-        const item = stock.find(s => s.id === btn.dataset.id);
-        addToCart(item, 1);
+        addToCart(stock.find(s => s.id === btn.dataset.id));
         renderCart();
         searchInput.value = "";
         resultsDiv.innerHTML = "";
@@ -271,45 +242,34 @@ export async function renderAddSale(container) {
       return;
     }
 
-    let amount;
-    if (saleMode === "items") {
-      amount = calculateTotal();
-    } else {
-      amount = Number(document.getElementById("amount").value);
-    }
+    const isSettlement = document.getElementById("is-settlement").checked;
+    const amount =
+      saleMode === "items"
+        ? calculateTotal()
+        : Number(document.getElementById("amount").value);
 
-    if (!Number.isFinite(amount) || amount <= 0) {
+    if (!amount || amount <= 0) {
       showToast("Invalid amount", "error");
       return;
     }
 
-    const customerName = customerInput.value.trim() || null;
-    const isSettlement = settlementCheckbox.checked;
+    const customerName =
+      document.getElementById("customer").value.trim() || null;
 
-    if ((selectedPayment === "credit" || isSettlement) && !customerName) {
-      showToast("Customer name required", "error");
-      return;
-    }
-
-    /* ===== CREDIT ELIGIBILITY ===== */
-    if (selectedPayment === "credit") {
-      const profiles = await getCustomerProfiles();
-      const scores = await getCreditTrustScores();
+    /* CREDIT SETTLEMENT CHECK */
+    if (isSettlement) {
       const ledger = await getCreditLedger();
-
-      const scoreObj = scores.find(
-        s => s.customerName.toLowerCase() === customerName.toLowerCase()
+      const entry = ledger.find(
+        l => l.customerName.toLowerCase() === customerName?.toLowerCase()
       );
 
-      const pending =
-        ledger.find(
-          l => l.customerName.toLowerCase() === customerName.toLowerCase()
-        )?.balance || 0;
+      if (!entry) {
+        showToast("No pending credit for this customer", "error");
+        return;
+      }
 
-      const limit = getCreditLimit(scoreObj?.creditScore || 0);
-
-      if (pending + amount > limit) {
-        showToast("Credit limit exceeded for this customer", "error");
+      if (amount > entry.balance) {
+        showToast(`Settlement exceeds pending ₹${entry.balance}`, "error");
         return;
       }
     }
