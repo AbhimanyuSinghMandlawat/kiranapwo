@@ -7,70 +7,58 @@ import { getCreditTrustScores } from "../services/creditScore";
 /* ===============================
    UI HELPERS
 =============================== */
-function getScoreColor(score) {
-  if (score >= 80) return "score-high";
-  if (score >= 50) return "score-medium";
-  return "score-low";
-}
+function getCreditText(credit) {
+  if (!credit || credit.creditScore === null) {
+    return "⚪ No Credit History";
+  }
 
-function getScoreLabel(score) {
-  if (score >= 80) return "Trusted Customer";
-  if (score >= 50) return "Regular Customer";
-  return "High Risk";
+  if (credit.creditScore >= 80) {
+    return `🔵 Score ${credit.creditScore} (Trusted Borrower)`;
+  }
+
+  if (credit.creditScore >= 50) {
+    return `🟡 Score ${credit.creditScore} (Average Credit)`;
+  }
+
+  return `🔴 Score ${credit.creditScore} (Risky Credit)`;
 }
 
 /* ===============================
-   RENDER CREDIT SCORE PAGE
+   RENDER PAGE
 =============================== */
 export async function renderCreditScore(container) {
   const profiles = await getCustomerProfiles();
-  const scores = await getCreditTrustScores();
+  const creditData = await getCreditTrustScores();
 
   container.innerHTML = renderLayout(`
     <section class="credit-score-page">
-      <h1>Customer Credit Health</h1>
+      <h1>Customer Loyalty & Credit</h1>
 
       <div class="credit-score-list">
         ${
-          scores.length === 0
-            ? `<p class="muted">No credit data available</p>`
-            : scores
-                .map(score => {
-                  const profile = profiles.find(
-                    p =>
-                      p.customerName.toLowerCase() ===
-                      score.customerName.toLowerCase()
+          profiles.length === 0
+            ? `<p class="muted">No customer data available</p>`
+            : profiles
+                .map(profile => {
+                  const credit = creditData.find(
+                    c =>
+                      c.customerName.toLowerCase() ===
+                      profile.customerName.toLowerCase()
                   );
 
                   return `
                     <div class="credit-card">
-                      <div class="credit-header">
-                        <div class="credit-info">
-                          <h3>${score.customerName}</h3>
-                          <span class="credit-tag">
-                            ${profile?.category || "Unclassified"}
-                          </span>
-                        </div>
+                      <h3>${profile.customerName}</h3>
 
-                        <div class="credit-score-badge ${getScoreColor(
-                          score.creditScore
-                        )}">
-                          ${score.creditScore}
-                        </div>
-                      </div>
+                      <p>
+                        🟢 <strong>Loyalty:</strong>
+                        ${profile.loyaltyLevel}
+                      </p>
 
-                      <div class="credit-bar">
-                        <div
-                          class="credit-bar-fill ${getScoreColor(
-                            score.creditScore
-                          )}"
-                          style="width: ${score.creditScore}%;"
-                        ></div>
-                      </div>
-
-                      <div class="credit-footer">
-                        ${getScoreLabel(score.creditScore)}
-                      </div>
+                      <p>
+                        <strong>Credit:</strong>
+                        ${getCreditText(credit)}
+                      </p>
                     </div>
                   `;
                 })
