@@ -282,12 +282,16 @@ export async function renderAddSale(container) {
       customerName,
       transactionType: isSettlement ? "settlement" : "sale",
       date: new Date().toLocaleDateString(),
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      estimatedProfit: 0
     };
 
     saleMode === "items"
       ? await processSale(sale)
-      : await saveSale(sale);
+      : await saveSale({
+          ...sale,
+          estimatedProfit: Math.round(amount * 0.2)
+       }); // assume 20% profit for quick sales
 
     showToast("Transaction saved", "success");
     navigate("dashboard");

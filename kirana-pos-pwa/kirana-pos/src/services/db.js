@@ -1,5 +1,5 @@
 const DB_NAME = "kirana_pos_db";
-const DB_VERSION = 6;
+const DB_VERSION = 7;
 const SALES_STORE = "sales";
 const STOCK_STORE = "stocks";
 
@@ -12,8 +12,7 @@ function openDB() {
 
       if (!db.objectStoreNames.contains(SALES_STORE)) {
         const s = db.createObjectStore(SALES_STORE, { keyPath: "id" });
-        s.createIndex("paymentMethod", "paymentMethod");
-        s.createIndex("customerName", "customerName");
+        s.createIndex("date", "date");
       }
 
       if (!db.objectStoreNames.contains(STOCK_STORE)) {
@@ -80,36 +79,6 @@ export async function updateStockQuantity(id, quantity) {
   });
 }
 
-export async function removeStockItem(id) {
-  const db = await openDB();
-  return new Promise(resolve => {
-    const tx = db.transaction(STOCK_STORE, "readwrite");
-    tx.objectStore(STOCK_STORE).delete(id);
-    tx.oncomplete = resolve;
-  });
-}
-
-export async function seedDefaultStock() {
-  const existing = await getAllStock();
-  if (existing.length > 0) return;
-
-  await addStockItem({
-    id: "rice",
-    name: "Rice",
-    price: 50,
-    quantity: 5,
-    threshold: 3
-  });
-
-  await addStockItem({
-    id: "sugar",
-    name: "Sugar",
-    price: 40,
-    quantity: 10,
-    threshold: 4
-  });
-}
-
 export async function processSale(sale) {
   const db = await openDB();
 
@@ -118,25 +87,28 @@ export async function processSale(sale) {
     const stockStore = tx.objectStore(STOCK_STORE);
     const salesStore = tx.objectStore(SALES_STORE);
 
-    try {
-      sale.items.forEach(i => {
-        const req = stockStore.get(i.itemId);
-        req.onsuccess = () => {
-          const s = req.result;
-          if (!s || s.quantity < i.qty) {
-            tx.abort();
-            reject("Insufficient stock");
-            return;
-          }
-          s.quantity -= i.qty;
-          stockStore.put(s);
-        };
-      });
+    let totalProfit = 0;
 
-      salesStore.put(sale);
-      tx.oncomplete = resolve;
-    } catch (e) {
-      reject(e);
-    }
+    sale.items.forEach(i => {
+      const req = stockStore.get(i.itemId);
+      req.onsuccess = () => {
+        const stock = req.result;
+        if (!stock || stock.quantity < i.qty) {
+          tx.abort();
+          reject("Insufficient stock");
+          return;
+        }
+
+        stock.quantity -= i.qty;
+        stockStore.put(stock);
+
+        const cost = stock.costPrice || 0;
+        totalProfit += (i.price - cost) * i.qty;
+      };
+    });
+
+    sale.estimatedProfit = Math.max(0, Math.round(totalProfit));
+    salesStore.put(sale);
+    tx.oncomplete = resolve;
   });
 }
