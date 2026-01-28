@@ -1,24 +1,30 @@
+// src/services/ledger.js
 import { getAllSales } from "./db";
 
 export async function getCreditLedger() {
   const sales = await getAllSales();
   const ledger = {};
 
-  sales.forEach(s => {
-    if (!s.customerName) return;
+  sales.forEach(sale => {
+    if (!sale.customerName) return;
 
-    if (!ledger[s.customerName]) {
-      ledger[s.customerName] = { customerName: s.customerName, balance: 0 };
+    const key = sale.customerName.trim().toLowerCase();
+
+    if (!ledger[key]) {
+      ledger[key] = {
+        customerName: sale.customerName,
+        balance: 0
+      };
     }
 
-    if (s.transactionType === "sale" && s.paymentMethod === "credit") {
-      ledger[s.customerName].balance += s.amount;
+    if (sale.transactionType === "sale" && sale.paymentMethod === "credit") {
+      ledger[key].balance += sale.amount;
     }
 
-    if (s.transactionType === "settlement") {
-      ledger[s.customerName].balance -= s.amount;
+    if (sale.transactionType === "settlement") {
+      ledger[key].balance -= sale.amount;
     }
   });
 
-  return Object.values(ledger).filter(c => c.balance > 0);
+  return Object.values(ledger).filter(l => l.balance > 0);
 }

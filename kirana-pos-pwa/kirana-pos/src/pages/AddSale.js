@@ -4,6 +4,8 @@ import { navigate } from "../app";
 import { showToast } from "../utils/toast";
 import { searchStock } from "../utils/helpers";
 import { getCreditLedger } from "../services/ledger";
+import { getCustomerProfiles } from "../services/customerProfile";
+import { getCreditTrustScores } from "../services/creditScore";
 
 /* ===============================
    STATE
@@ -11,6 +13,16 @@ import { getCreditLedger } from "../services/ledger";
 let cartItems = [];
 let saleMode = "amount"; // amount | items
 let selectedPayment = null;
+
+/* ===============================
+   CREDIT LIMIT LOGIC
+=============================== */
+function getCreditLimit(score) {
+  if (score >= 80) return 5000;
+  if (score >= 60) return 2000;
+  if (score >= 40) return 500;
+  return 0;
+}
 
 /* ===============================
    CART HELPERS
@@ -25,6 +37,10 @@ function addToCart(stockItem, qty = 1) {
     }
     existing.qty += qty;
   } else {
+    if (qty > stockItem.quantity) {
+      showToast("Not enough stock", "error");
+      return;
+    }
     cartItems.push({
       itemId: stockItem.id,
       name: stockItem.name,
@@ -168,15 +184,15 @@ export async function renderAddSale(container) {
         : cartItems
             .map(
               i => `
-          <div class="cart-row">
-            <span>${i.name}</span>
-            <div class="cart-controls">
-              <button data-dec="${i.itemId}">−</button>
-              <span>${i.qty}</span>
-              <button data-inc="${i.itemId}">+</button>
-            </div>
-          </div>
-        `
+              <div class="cart-row">
+                <span>${i.name}</span>
+                <div class="cart-controls">
+                  <button data-dec="${i.itemId}">−</button>
+                  <span>${i.qty}</span>
+                  <button data-inc="${i.itemId}">+</button>
+                </div>
+              </div>
+            `
             )
             .join("");
 
@@ -193,7 +209,7 @@ export async function renderAddSale(container) {
     cartDiv.querySelectorAll("[data-dec]").forEach(btn => {
       btn.onclick = () => {
         const item = cartItems.find(i => i.itemId === btn.dataset.dec);
-        item.qty--;
+        item.qty -= 1;
         if (item.qty <= 0) removeFromCart(item.itemId);
         renderCart();
       };
@@ -208,7 +224,10 @@ export async function renderAddSale(container) {
 
   searchInput.oninput = () => {
     const q = searchInput.value.trim();
-    if (!q) return (resultsDiv.innerHTML = "");
+    if (!q) {
+      resultsDiv.innerHTML = "";
+      return;
+    }
 
     const results = searchStock(stock, q);
 
@@ -217,12 +236,12 @@ export async function renderAddSale(container) {
         ${results
           .map(
             i => `
-          <div class="search-item">
+          <div class="search-item ${i.quantity === 0 ? "disabled" : ""}">
             <div>
               <strong>${i.name}</strong>
-              <small>₹${i.price}</small>
+              <small>₹${i.price} · Stock: ${i.quantity}</small>
             </div>
-            <button data-id="${i.id}">Add</button>
+            <button data-id="${i.id}" ${i.quantity === 0 ? "disabled" : ""}>Add</button>
           </div>
         `
           )
@@ -232,7 +251,8 @@ export async function renderAddSale(container) {
 
     resultsDiv.querySelectorAll("button").forEach(btn => {
       btn.onclick = () => {
-        addToCart(stock.find(s => s.id === btn.dataset.id));
+        const item = stock.find(s => s.id === btn.dataset.id);
+        addToCart(item, 1);
         renderCart();
         searchInput.value = "";
         resultsDiv.innerHTML = "";
@@ -241,7 +261,7 @@ export async function renderAddSale(container) {
   };
 
   /* ===============================
-     SUBMIT (WITH CORRECT SETTLEMENT LOGIC)
+     SUBMIT
   =============================== */
   document.getElementById("sale-form").onsubmit = async e => {
     e.preventDefault();
@@ -251,39 +271,45 @@ export async function renderAddSale(container) {
       return;
     }
 
-    const isSettlement = settlementCheckbox.checked;
+    let amount;
+    if (saleMode === "items") {
+      amount = calculateTotal();
+    } else {
+      amount = Number(document.getElementById("amount").value);
+    }
 
-    const amount =
-      saleMode === "items"
-        ? calculateTotal()
-        : document.getElementById("amount").valueAsNumber;
-
-    if (!amount || isNaN(amount) || amount <= 0) {
+    if (!Number.isFinite(amount) || amount <= 0) {
       showToast("Invalid amount", "error");
       return;
     }
 
-    if ((selectedPayment === "credit" || isSettlement) && !customerInput.value.trim()) {
+    const customerName = customerInput.value.trim() || null;
+    const isSettlement = settlementCheckbox.checked;
+
+    if ((selectedPayment === "credit" || isSettlement) && !customerName) {
       showToast("Customer name required", "error");
       return;
     }
 
-    /* 🔒 CREDIT SETTLEMENT VALIDATION */
-    if (isSettlement) {
+    /* ===== CREDIT ELIGIBILITY ===== */
+    if (selectedPayment === "credit") {
+      const profiles = await getCustomerProfiles();
+      const scores = await getCreditTrustScores();
       const ledger = await getCreditLedger();
-      const customer = customerInput.value.trim();
 
-      const entry = ledger.find(
-        l => l.customerName.toLowerCase() === customer.toLowerCase()
+      const scoreObj = scores.find(
+        s => s.customerName.toLowerCase() === customerName.toLowerCase()
       );
 
-      if (!entry) {
-        showToast("No pending credit for this customer", "error");
-        return;
-      }
+      const pending =
+        ledger.find(
+          l => l.customerName.toLowerCase() === customerName.toLowerCase()
+        )?.balance || 0;
 
-      if (amount > entry.balance) {
-        showToast(`Settlement exceeds pending amount (₹${entry.balance})`, "error");
+      const limit = getCreditLimit(scoreObj?.creditScore || 0);
+
+      if (pending + amount > limit) {
+        showToast("Credit limit exceeded for this customer", "error");
         return;
       }
     }
@@ -293,13 +319,15 @@ export async function renderAddSale(container) {
       amount,
       items: saleMode === "items" ? cartItems : [],
       paymentMethod: selectedPayment,
-      customerName: customerInput.value || null,
+      customerName,
       transactionType: isSettlement ? "settlement" : "sale",
       date: new Date().toLocaleDateString(),
       timestamp: Date.now()
     };
 
-    saleMode === "items" ? await processSale(sale) : await saveSale(sale);
+    saleMode === "items"
+      ? await processSale(sale)
+      : await saveSale(sale);
 
     showToast("Transaction saved", "success");
     navigate("dashboard");

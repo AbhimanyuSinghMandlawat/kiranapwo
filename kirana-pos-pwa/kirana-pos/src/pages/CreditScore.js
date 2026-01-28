@@ -1,31 +1,26 @@
-import { renderLayout } from "../components/Layout";
-import { getAllSales } from "../services/db";
-import { calculateCreditScore } from "../services/creditScore";
+// src/services/creditScore.js
+import { getCustomerProfiles } from "./customerProfile";
 
-export async function renderCreditScore(container) {
-  const sales = await getAllSales();
-  const score = calculateCreditScore(sales);
+export async function getCreditTrustScores() {
+  const profiles = await getCustomerProfiles();
 
-  let level = "Poor";
-  if (score > 750) level = "Excellent";
-  else if (score > 650) level = "Good";
-  else if (score > 550) level = "Average";
+  return profiles.map(profile => {
+    let score = 50;
 
-  const content = `
-    <section class="credit-score">
-      <h1>Business Credit Score</h1>
+    if (profile.creditSalesCount > 0) {
+      score += profile.settlementCount * 10;
 
-      <div class="score-box">
-        <h2>${score}</h2>
-        <p>${level}</p>
-      </div>
+      const pending = profile.creditTaken - profile.creditSettled;
+      if (pending > 0) {
+        score -= 20;
+      }
+    }
 
-      <p class="score-info">
-        This score is calculated based on your sales performance,
-        consistency, and credit usage.
-      </p>
-    </section>
-  `;
+    score = Math.max(0, Math.min(100, score));
 
-  container.innerHTML = renderLayout(content);
+    return {
+      customerName: profile.customerName,
+      creditScore: score
+    };
+  });
 }
