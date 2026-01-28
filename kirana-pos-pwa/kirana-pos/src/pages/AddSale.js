@@ -72,6 +72,14 @@ export async function renderAddSale(container) {
             <h4>Cart</h4>
             <div id="cart-list"></div>
             <p><strong>Total:</strong> ₹<span id="cart-total">0</span></p>
+
+            <!-- ✅ NEW: PROFIT PERCENTAGE INPUT -->
+            <label>Profit Percentage (%)</label>
+            <input
+              id="profit-percent"
+              type="number"
+              placeholder="e.g. 10"
+            />
           </div>
 
           <div id="settlement-section" class="settlement-row">
@@ -87,7 +95,6 @@ export async function renderAddSale(container) {
             <button type="button" class="btn-option" data-method="credit">Credit</button>
           </div>
 
-          <!-- ✅ CUSTOMER NAME ALWAYS AVAILABLE -->
           <label>Customer Name</label>
           <input
             id="customer"
@@ -102,7 +109,7 @@ export async function renderAddSale(container) {
   `);
 
   /* ===============================
-     MODE SWITCH (FIXED ACTIVE STATE)
+     MODE SWITCH
   =============================== */
   const amountSection = document.getElementById("amount-section");
   const itemSection = document.getElementById("item-sale-section");
@@ -133,7 +140,7 @@ export async function renderAddSale(container) {
   };
 
   /* ===============================
-     PAYMENT METHOD SELECTION
+     PAYMENT METHOD
   =============================== */
   document.querySelectorAll(".payment-options .btn-option").forEach(btn => {
     btn.onclick = () => {
@@ -256,7 +263,6 @@ export async function renderAddSale(container) {
     const customerName =
       document.getElementById("customer").value.trim() || null;
 
-    /* CREDIT SETTLEMENT CHECK */
     if (isSettlement) {
       const ledger = await getCreditLedger();
       const entry = ledger.find(
@@ -274,6 +280,15 @@ export async function renderAddSale(container) {
       }
     }
 
+    /* ✅ PROFIT CALCULATION */
+    let estimatedProfit = 0;
+
+    if (saleMode === "items") {
+      const profitPercent =
+        Number(document.getElementById("profit-percent").value) || 0;
+      estimatedProfit = Math.round((amount * profitPercent) / 100);
+    }
+
     const sale = {
       id: crypto.randomUUID(),
       amount,
@@ -283,7 +298,7 @@ export async function renderAddSale(container) {
       transactionType: isSettlement ? "settlement" : "sale",
       date: new Date().toLocaleDateString(),
       timestamp: Date.now(),
-      estimatedProfit: 0
+      estimatedProfit
     };
 
     saleMode === "items"
@@ -291,7 +306,7 @@ export async function renderAddSale(container) {
       : await saveSale({
           ...sale,
           estimatedProfit: Math.round(amount * 0.2)
-       }); // assume 20% profit for quick sales
+        });
 
     showToast("Transaction saved", "success");
     navigate("dashboard");

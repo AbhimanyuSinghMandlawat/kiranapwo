@@ -1,4 +1,11 @@
 export function renderLayout(contentHtml) {
+  // Determine current network state safely
+  const online = navigator.onLine;
+
+  const syncText = online
+    ? `<span class="dot online"></span> Online · All data synced`
+    : `<span class="dot offline"></span> Offline · Working locally`;
+
   return `
     <div class="app-layout">
 
@@ -17,8 +24,15 @@ export function renderLayout(contentHtml) {
 
       <!-- Main Content -->
       <main class="main-content page-enter">
+
+        <!-- Network / Sync Status -->
         <div class="network-status" id="network-status"></div>
-        <div class="sync-status" id="sync-status"></div>
+
+        <div class="sync-status" id="sync-status">
+          ${syncText}
+        </div>
+
+        <!-- Global Toast Container -->
         <div id="toast-container"></div>
 
         ${contentHtml}
