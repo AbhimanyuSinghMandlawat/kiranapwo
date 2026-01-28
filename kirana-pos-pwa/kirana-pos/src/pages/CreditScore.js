@@ -1,26 +1,50 @@
-// src/services/creditScore.js
-import { getCustomerProfiles } from "./customerProfile";
+import { renderLayout } from "../components/Layout";
+import { getCustomerProfiles } from "../services/customerProfile";
+import { getCreditTrustScores } from "../services/creditScore";
 
-export async function getCreditTrustScores() {
+/* ===============================
+   RENDER CREDIT SCORE PAGE
+=============================== */
+export async function renderCreditScore(container) {
   const profiles = await getCustomerProfiles();
+  const creditScores = await getCreditTrustScores();
 
-  return profiles.map(profile => {
-    let score = 50;
+  container.innerHTML = renderLayout(`
+    <section class="credit-score">
+      <div class="glass-card">
+        <h1>Credit Score</h1>
 
-    if (profile.creditSalesCount > 0) {
-      score += profile.settlementCount * 10;
+        ${
+          creditScores.length === 0
+            ? `<p>No credit data available</p>`
+            : creditScores
+                .map(score => {
+                  const profile = profiles.find(
+                    p =>
+                      p.customerName.toLowerCase() ===
+                      score.customerName.toLowerCase()
+                  );
 
-      const pending = profile.creditTaken - profile.creditSettled;
-      if (pending > 0) {
-        score -= 20;
-      }
-    }
-
-    score = Math.max(0, Math.min(100, score));
-
-    return {
-      customerName: profile.customerName,
-      creditScore: score
-    };
-  });
+                  return `
+                    <div class="credit-row">
+                      <div>
+                        <strong>${score.customerName}</strong>
+                        <small>
+                          ${
+                            profile?.category ||
+                            "Unclassified"
+                          }
+                        </small>
+                      </div>
+                      <div class="credit-score-value">
+                        ${score.creditScore}
+                      </div>
+                    </div>
+                  `;
+                })
+                .join("")
+        }
+      </div>
+    </section>
+  `);
 }
