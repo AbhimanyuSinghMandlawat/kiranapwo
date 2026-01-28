@@ -7,20 +7,40 @@ import { getCreditTrustScores } from "../services/creditScore";
 /* ===============================
    UI HELPERS
 =============================== */
-function getCreditText(credit) {
+function loyaltyClass(level) {
+  return level.toLowerCase();
+}
+
+function creditInfo(credit) {
   if (!credit || credit.creditScore === null) {
-    return "⚪ No Credit History";
+    return {
+      score: "--",
+      label: "No Credit History",
+      className: "none"
+    };
   }
 
   if (credit.creditScore >= 80) {
-    return `🔵 Score ${credit.creditScore} (Trusted Borrower)`;
+    return {
+      score: credit.creditScore,
+      label: "Trusted Borrower",
+      className: "good"
+    };
   }
 
   if (credit.creditScore >= 50) {
-    return `🟡 Score ${credit.creditScore} (Average Credit)`;
+    return {
+      score: credit.creditScore,
+      label: "Average Credit",
+      className: "avg"
+    };
   }
 
-  return `🔴 Score ${credit.creditScore} (Risky Credit)`;
+  return {
+    score: credit.creditScore,
+    label: "Risky Credit",
+    className: "bad"
+  };
 }
 
 /* ===============================
@@ -31,10 +51,13 @@ export async function renderCreditScore(container) {
   const creditData = await getCreditTrustScores();
 
   container.innerHTML = renderLayout(`
-    <section class="credit-score-page">
-      <h1>Customer Loyalty & Credit</h1>
+    <section class="credit-page">
+      <header class="credit-header">
+        <h1>Customer Loyalty & Credit</h1>
+        <p>Make better decisions using real customer behavior</p>
+      </header>
 
-      <div class="credit-score-list">
+      <div class="customer-grid">
         ${
           profiles.length === 0
             ? `<p class="muted">No customer data available</p>`
@@ -46,20 +69,46 @@ export async function renderCreditScore(container) {
                       profile.customerName.toLowerCase()
                   );
 
+                  const c = creditInfo(credit);
+                  const avgSpend = Math.round(
+                    profile.totalSpent / profile.totalVisits
+                  );
+
                   return `
-                    <div class="credit-card">
-                      <h3>${profile.customerName}</h3>
+                    <article class="customer-card">
+                      <div class="customer-top">
+                        <h3>${profile.customerName}</h3>
+                        <div class="credit-score ${c.className}">
+                          ${c.score}
+                        </div>
+                      </div>
 
-                      <p>
-                        🟢 <strong>Loyalty:</strong>
-                        ${profile.loyaltyLevel}
-                      </p>
+                      <div class="customer-tags">
+                        <span class="loyalty-badge ${loyaltyClass(
+                          profile.loyaltyLevel
+                        )}">
+                          ${profile.loyaltyLevel}
+                        </span>
+                        <span class="credit-label">
+                          ${c.label}
+                        </span>
+                      </div>
 
-                      <p>
-                        <strong>Credit:</strong>
-                        ${getCreditText(credit)}
-                      </p>
-                    </div>
+                      <div class="customer-stats">
+                        <div>
+                          <small>Visits</small>
+                          <strong>${profile.totalVisits}</strong>
+                        </div>
+                        <div>
+                          <small>Avg Spend</small>
+                          <strong>₹${avgSpend}</strong>
+                        </div>
+                        <div>
+                          <small>Total Spent</small>
+                          <strong>₹${profile.totalSpent}</strong>
+                        </div>
+                      </div>
+                    </article>
                   `;
                 })
                 .join("")
