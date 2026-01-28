@@ -1,10 +1,10 @@
 // src/services/customerProfile.js
+
 import { getAllSales } from "./db";
 
-function normalizeName(name) {
-  return name.trim().toLowerCase();
-}
-
+/* ===============================
+   CUSTOMER PROFILE BUILDER
+=============================== */
 export async function getCustomerProfiles() {
   const sales = await getAllSales();
   const map = {};
@@ -12,37 +12,67 @@ export async function getCustomerProfiles() {
   sales.forEach(sale => {
     if (!sale.customerName) return;
 
-    const key = normalizeName(sale.customerName);
+    const name = sale.customerName.trim();
+    const date = sale.timestamp || Date.now();
 
-    if (!map[key]) {
-      map[key] = {
-        customerName: sale.customerName,
-        visits: 0,
+    if (!map[name]) {
+      map[name] = {
+        customerName: name,
+        totalVisits: 0,
         totalSpent: 0,
-        creditTaken: 0,
-        creditSettled: 0,
-        creditSalesCount: 0,
-        settlementCount: 0,
-        lastVisit: 0
+        firstVisit: date,
+        lastVisit: date
       };
     }
 
-    const profile = map[key];
-
-    profile.visits += 1;
-    profile.totalSpent += sale.amount;
-    profile.lastVisit = Math.max(profile.lastVisit, sale.timestamp);
-
-    if (sale.paymentMethod === "credit" && sale.transactionType === "sale") {
-      profile.creditTaken += sale.amount;
-      profile.creditSalesCount += 1;
-    }
-
-    if (sale.transactionType === "settlement") {
-      profile.creditSettled += sale.amount;
-      profile.settlementCount += 1;
-    }
+    map[name].totalVisits += 1;
+    map[name].totalSpent += sale.amount;
+    map[name].firstVisit = Math.min(map[name].firstVisit, date);
+    map[name].lastVisit = Math.max(map[name].lastVisit, date);
   });
 
-  return Object.values(map);
+  return Object.values(map).map(profile => ({
+    ...profile,
+    loyaltyLevel: classifyLoyalty(profile)
+  }));
+}
+
+/* ===============================
+   LOYALTY CLASSIFICATION
+   (REAL-WORLD, MULTI-VARIABLE)
+=============================== */
+export function classifyLoyalty(profile) {
+  const now = Date.now();
+  const daysSinceLastVisit = Math.floor(
+    (now - profile.lastVisit) / (1000 * 60 * 60 * 24)
+  );
+
+  const avgSpend = profile.totalSpent / profile.totalVisits;
+
+  // 🟡 New customer
+  if (profile.totalVisits === 1) {
+    return "New";
+  }
+
+  // 🟠 Occasional (visited but not consistent)
+  if (profile.totalVisits >= 2 && daysSinceLastVisit > 30) {
+    return "Occasional";
+  }
+
+  // 🟢 Regular
+  if (profile.totalVisits >= 5 && avgSpend >= 100) {
+    return "Regular";
+  }
+
+  // 🔵 Loyal
+  if (profile.totalVisits >= 10 && daysSinceLastVisit <= 30) {
+    return "Loyal";
+  }
+
+  // 🟣 VIP
+  if (profile.totalVisits >= 20 && profile.totalSpent >= 5000) {
+    return "VIP";
+  }
+
+  return "Occasional";
 }
