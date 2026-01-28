@@ -1,100 +1,103 @@
-// src/pages/Stock.js
-
 import { renderLayout } from "../components/Layout";
 import {
   addStockItem,
   getAllStock,
-  updateStockQuantity
+  updateStockQuantity,
+  removeStockItem
 } from "../services/db";
 import { showToast } from "../utils/toast";
+import { showConfirmModal } from "../components/ConfirmModal";
+import { showStockEditModal } from "../components/StockEditModal";
+import { attachNavEvents } from "../app"; // ✅ REQUIRED
 
-/* ===============================
-   RENDER STOCK PAGE
-=============================== */
 export async function renderStock(container) {
-  const stock = await getAllStock();
+  const stockItems = await getAllStock();
 
-  container.innerHTML = renderLayout(`
-    <section class="stock-page">
-      <div class="glass-card">
-        <h1>Stock Management</h1>
+  const rows =
+    stockItems.length === 0
+      ? "<p>No stock items added yet.</p>"
+      : stockItems
+          .map(
+            item => `
+        <div class="card ledger-row">
+          <div>
+            <strong>${item.name}</strong>
+            <p>
+              Price: ₹${item.price ?? "—"}<br/>
+              Quantity: ${item.quantity}<br/>
+              Alert below: ${item.threshold}
+            </p>
+          </div>
 
-        <!-- ADD STOCK -->
-        <div class="stock-form">
-          <h3>Add New Item</h3>
+          <div class="stock-actions">
+            <button class="btn-primary add-btn" data-id="${item.id}">
+              + Add
+            </button>
 
-          <input id="item-name" placeholder="Item name" />
-          <input id="item-price" type="number" placeholder="Selling Price (₹)" />
-          <input id="item-cost" type="number" placeholder="Cost Price (₹)" />
-          <input id="item-qty" type="number" placeholder="Quantity" />
-          <input id="item-threshold" type="number" placeholder="Low stock alert" />
+            <button class="btn-secondary edit-btn" data-id="${item.id}">
+              Edit Alert
+            </button>
 
-          <button id="add-stock-btn" class="btn-primary">
-            Add Item
-          </button>
+            <button class="btn-danger remove-btn" data-id="${item.id}">
+              Remove
+            </button>
+          </div>
         </div>
+      `
+          )
+          .join("");
 
-        <!-- STOCK LIST -->
-        <div class="stock-list">
-          <h3>Current Stock</h3>
+  const content = `
+    <section class="dashboard">
+      <h1>Manage Stock</h1>
 
-          ${
-            stock.length === 0
-              ? `<p class="muted">No stock items added yet</p>`
-              : `
-                <table class="stock-table">
-                  <thead>
-                    <tr>
-                      <th>Item</th>
-                      <th>Sell ₹</th>
-                      <th>Cost ₹</th>
-                      <th>Qty</th>
-                      <th>Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${stock
-                      .map(
-                        item => `
-                          <tr>
-                            <td>${item.name}</td>
-                            <td>₹${item.price}</td>
-                            <td>₹${item.costPrice ?? 0}</td>
-                            <td>${item.quantity}</td>
-                            <td>
-                              <button
-                                class="btn-small"
-                                data-id="${item.id}"
-                                data-qty="${item.quantity}"
-                              >
-                                + Add
-                              </button>
-                            </td>
-                          </tr>
-                        `
-                      )
-                      .join("")}
-                  </tbody>
-                </table>
-              `
-          }
-        </div>
+      <div class="card">
+        <h3>Add New Item</h3>
+
+        <input id="item-name" placeholder="Item name (e.g. Rice 1kg)" />
+        <input id="item-price" type="number" placeholder="Price (₹)" />
+        <input id="item-qty" type="number" placeholder="Quantity" />
+        <input id="item-threshold" type="number" placeholder="Alert level" />
+
+        <button id="add-item" class="btn-primary">
+          Add Item
+        </button>
+      </div>
+
+      <div style="margin-top:20px">
+        <h3>Current Stock</h3>
+        ${rows}
       </div>
     </section>
-  `);
+  `;
 
-  /* ===============================
-     ADD STOCK HANDLER
-  =============================== */
-  document.getElementById("add-stock-btn").onclick = async () => {
+  container.innerHTML = renderLayout(content);
+  attachNavEvents(); // ✅ critical after layout render
+
+  /* =========================
+     ADD NEW ITEM
+  ========================= */
+  document.getElementById("add-item").onclick = async () => {
     const name = document.getElementById("item-name").value.trim();
     const price = Number(document.getElementById("item-price").value);
-    const costPrice = Number(document.getElementById("item-cost").value);
     const quantity = Number(document.getElementById("item-qty").value);
     const threshold = Number(document.getElementById("item-threshold").value);
 
-    if (!name || price <= 0 || quantity <= 0) {
+    if (!name || price <= 0 || quantity <= 0 || threshold < 0) {
       showToast("Please enter valid stock details", "error");
+      return;
+    }
+
+    const exists = stockItems.find(
+      i => i.name.toLowerCase() === name.toLowerCase()
+    );
+
+    if (exists) {
+      showToast(
+        `"${name}" already exists. Use + Add instead.`,
+        "warning",
+        3500
+      );
       return;
     }
 
@@ -102,29 +105,74 @@ export async function renderStock(container) {
       id: crypto.randomUUID(),
       name,
       price,
-      costPrice: costPrice || 0, // 🔑 IMPORTANT FOR PROFIT
       quantity,
       threshold
     });
 
-    showToast("Stock item added", "success");
-    renderStock(container);
+    showToast("Stock item added", "success", 3000);
+    await renderStock(container);
   };
 
-  /* ===============================
-     UPDATE QUANTITY HANDLER
-  =============================== */
-  document.querySelectorAll(".btn-small").forEach(btn => {
-    btn.onclick = async () => {
-      const id = btn.dataset.id;
-      const currentQty = Number(btn.dataset.qty);
+  /* =========================
+     + ADD STOCK
+  ========================= */
+  document.querySelectorAll(".add-btn").forEach(btn => {
+    btn.onclick = () => {
+      const item = stockItems.find(i => i.id === btn.dataset.id);
 
-      const addQty = Number(prompt("Add quantity:"));
-      if (!addQty || addQty <= 0) return;
+      showStockEditModal({
+        title: `Add Stock – ${item.name}`,
+        placeholder: "Enter quantity to add",
+        confirmText: "Add",
+        onConfirm: async qty => {
+          await updateStockQuantity(item.id, item.quantity + qty);
+          showToast("Stock updated", "success", 3000);
+          await renderStock(container);
+        }
+      });
+    };
+  });
 
-      await updateStockQuantity(id, currentQty + addQty);
-      showToast("Stock updated", "success");
-      renderStock(container);
+  /* =========================
+     EDIT ALERT
+  ========================= */
+  document.querySelectorAll(".edit-btn").forEach(btn => {
+    btn.onclick = () => {
+      const item = stockItems.find(i => i.id === btn.dataset.id);
+
+      showStockEditModal({
+        title: `Edit Alert – ${item.name}`,
+        placeholder: "Enter new alert level",
+        confirmText: "Save",
+        onConfirm: async value => {
+          await addStockItem({
+            ...item,
+            threshold: value
+          });
+
+          showToast("Alert updated", "success", 3000);
+          await renderStock(container);
+        }
+      });
+    };
+  });
+
+  /* =========================
+     REMOVE ITEM
+  ========================= */
+  document.querySelectorAll(".remove-btn").forEach(btn => {
+    btn.onclick = () => {
+      const item = stockItems.find(i => i.id === btn.dataset.id);
+
+      showConfirmModal({
+        title: "Remove Item?",
+        message: `Are you sure you want to remove "${item.name}"?`,
+        onConfirm: async () => {
+          await removeStockItem(item.id);
+          showToast("Item removed", "warning", 3000);
+          await renderStock(container);
+        }
+      });
     };
   });
 }
