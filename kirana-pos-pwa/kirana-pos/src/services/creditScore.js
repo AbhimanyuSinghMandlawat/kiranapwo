@@ -1,30 +1,78 @@
-export function calculateCreditScore(sales) {
-  if (sales.length === 0) return 300;
+// src/services/creditScore.js
 
-  const daysSet = new Set(sales.map(s => s.date));
-  const activeDays = daysSet.size;
+import { getAllSales } from "./db";
+import { getCustomerProfiles } from "./customerProfile";
+import { getCreditLedger } from "./ledger";
 
-  const totalAmount = sales.reduce((sum, s) => sum + s.amount, 0);
-  const avgDailySales = totalAmount / activeDays;
+/* =====================================================
+   INTERNAL: CREDIT SCORE CALCULATION
+   (kept in same file — OPTION A)
+===================================================== */
+function calculateCreditScore(profile, ledgerEntries) {
+  let score = 50;
 
-  const creditSales = sales
-    .filter(s => s.paymentMethod === "credit")
-    .reduce((sum, s) => sum + s.amount, 0);
+  // Visit-based trust
+  if (profile.totalVisits >= 5) score += 5;
+  if (profile.totalVisits >= 10) score += 10;
+  if (profile.totalVisits >= 25) score += 10;
 
-  const creditRatio = creditSales / totalAmount;
+  // Credit discipline
+  const hasPending = ledgerEntries.some(e => e.balance > 0);
+  if (!hasPending) score += 20;
 
-  // Normalize scores
-  const salesScore = Math.min((avgDailySales / 5000) * 360, 360);
-  const consistencyScore = Math.min(activeDays * 5, 270);
-  const creditScore = creditRatio < 0.3 ? 180 : creditRatio < 0.5 ? 120 : 60;
-  const longevityScore = Math.min(activeDays * 2, 90);
+  // High-risk behavior
+  const maxPending = ledgerEntries.length
+    ? Math.max(...ledgerEntries.map(e => e.balance))
+    : 0;
 
-  const finalScore =
-    300 +
-    salesScore +
-    consistencyScore +
-    creditScore +
-    longevityScore;
+  if (maxPending > 2000) score -= 20;
+  if (maxPending > 5000) score -= 30;
 
-  return Math.min(Math.round(finalScore), 900);
+  return Math.max(0, Math.min(100, score));
+}
+
+/* =====================================================
+   PUBLIC API
+===================================================== */
+export async function getCreditTrustScores() {
+  const profiles = await getCustomerProfiles();
+  const ledger = await getCreditLedger();
+  const sales = await getAllSales();
+
+  return profiles.map(profile => {
+    const customerLedger = ledger.filter(
+      l =>
+        l.customerName.toLowerCase() ===
+        profile.customerName.toLowerCase()
+    );
+
+    const customerSales = sales.filter(
+      s =>
+        s.customerName &&
+        s.customerName.toLowerCase() ===
+          profile.customerName.toLowerCase()
+    );
+
+    const creditScore = calculateCreditScore(
+      profile,
+      customerLedger
+    );
+
+    return {
+      customerName: profile.customerName,
+      creditScore,
+      totalVisits: profile.totalVisits,
+      totalSpent: profile.totalSpent,
+      pendingAmount: customerLedger.reduce(
+        (sum, l) => sum + l.balance,
+        0
+      ),
+      classification:
+        creditScore >= 80
+          ? "Trusted"
+          : creditScore >= 50
+          ? "Regular"
+          : "Risky"
+    };
+  });
 }

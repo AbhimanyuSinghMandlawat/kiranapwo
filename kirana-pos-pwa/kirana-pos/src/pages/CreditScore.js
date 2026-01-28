@@ -30,12 +30,10 @@ export async function renderCreditScore(container) {
                       <div>
                         <strong>${score.customerName}</strong>
                         <small>
-                          ${
-                            profile?.category ||
-                            "Unclassified"
-                          }
+                          ${profile?.category || "Unclassified"}
                         </small>
                       </div>
+
                       <div class="credit-score-value">
                         ${score.creditScore}
                       </div>
