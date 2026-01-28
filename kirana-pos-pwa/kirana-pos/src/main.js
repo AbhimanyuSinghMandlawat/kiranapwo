@@ -37,7 +37,10 @@ window.addEventListener("offline", handleNetworkChange);
    APP START
 =============================== */
 navigate("dashboard");
-seedDefaultStock();
+
+seedDefaultStock().catch(err => {
+  console.warn("Seed skipped:", err.message);
+});
 setTimeout(handleNetworkChange, 0);
 
 /* ===============================

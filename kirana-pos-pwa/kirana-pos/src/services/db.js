@@ -21,8 +21,25 @@ function openDB() {
       }
     };
 
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject("DB open failed");
+    req.onsuccess = e => {
+      const db = e.target.result;
+
+      // 🔴 REQUIRED: prevent blocked upgrades / HMR issues
+      db.onversionchange = () => {
+        db.close();
+        console.warn("IndexedDB connection closed due to version change");
+      };
+
+      resolve(db);
+    };
+
+    req.onerror = () => {
+      reject(new Error("DB open failed"));
+    };
+
+    req.onblocked = () => {
+      reject(new Error("DB blocked by another open connection"));
+    };
   });
 }
 
