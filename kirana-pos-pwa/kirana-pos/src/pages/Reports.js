@@ -3,6 +3,22 @@ import { getAllSales } from "../services/db";
 import { getLast7DaysProfit } from "../services/profitTrends";
 import { getStockAlerts } from "../services/stockAlerts";
 
+/* =====================
+   PROFIT BAR VISUAL CONFIG
+   (ADDED – does NOT break anything)
+===================== */
+const MAX_BAR_HEIGHT = 48; // px
+const MIN_BAR_HEIGHT = 6;  // px
+
+function getBarHeight(value, maxValue) {
+  if (value <= 0) return 2;
+
+  const scaled =
+    (Math.sqrt(value) / Math.sqrt(maxValue)) * MAX_BAR_HEIGHT;
+
+  return Math.max(MIN_BAR_HEIGHT, scaled);
+}
+
 export async function renderReports(container) {
   const sales = await getAllSales();
 
@@ -24,10 +40,7 @@ export async function renderReports(container) {
   const weeklySales = sales.filter(
     s => new Date(s.timestamp) >= weekAgo
   );
-  const weeklyTotal = weeklySales.reduce(
-    (sum, s) => sum + s.amount,
-    0
-  );
+  const weeklyTotal = weeklySales.reduce((sum, s) => sum + s.amount, 0);
 
   /* =====================
      MONTHLY SALES
@@ -39,10 +52,7 @@ export async function renderReports(container) {
     const d = new Date(s.timestamp);
     return d.getMonth() === month && d.getFullYear() === year;
   });
-  const monthlyTotal = monthlySales.reduce(
-    (sum, s) => sum + s.amount,
-    0
-  );
+  const monthlyTotal = monthlySales.reduce((sum, s) => sum + s.amount, 0);
 
   /* =====================
      STOCK ALERTS
@@ -54,34 +64,31 @@ export async function renderReports(container) {
       ? "<p>All stocks are sufficient 👍</p>"
       : alerts
           .map(
-            a =>
-              `<p>⚠ ${a.name} — Only ${a.quantity} left</p>`
+            a => `<p>⚠ ${a.name} — Only ${a.quantity} left</p>`
           )
           .join("");
 
   /* =====================
-     PROFIT TREND (LAST 7 CALENDAR DAYS)
+     PROFIT TREND (IMPROVED VISUAL)
   ===================== */
   const profitData = await getLast7DaysProfit();
 
-  const maxProfit = Math.max(
-    ...profitData.map(p => p.profit),
-    1
-  );
+  // keep your safety fallback
+  const maxProfit = Math.max(...profitData.map(p => p.profit), 1);
 
   const chartBars = profitData
     .map(p => {
-      const height = Math.round(
-        (p.profit / maxProfit) * 100
-      );
-
-      const dayLabel = p.date.split("/")[0];
+      const heightPx = getBarHeight(p.profit, maxProfit);
 
       return `
-        <div class="profit-bar">
-          <div class="bar" style="height:${height}%"></div>
-          <span>₹${p.profit}</span>
-          <small>${dayLabel}</small>
+        <div class="profit-bar-wrapper">
+          <span class="profit-value">₹${p.profit}</span>
+          <div
+            class="profit-bar ${p.profit === 0 ? "zero" : ""}"
+            style="--h:${heightPx}px"
+            data-value="₹${p.profit}"
+          ></div>
+          <span class="profit-label">${p.date.split("/")[0]}</span>
         </div>
       `;
     })

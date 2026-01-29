@@ -135,14 +135,12 @@ body {
   width: 100%;
   max-width: 520px;
   max-height: 90vh;
-  overflow: hidden;
+  overflow: visible;
   padding: 28px;
   background: var(--card-bg);
   backdrop-filter: var(--blur);
   border: 1px solid var(--card-border);
   border-radius: var(--radius);
-  display: flex;
-  flex-direction: column;
 }
 
 .glass-card h1 {
@@ -483,46 +481,81 @@ body {
 /* ===================== PROFIT CHART ===================== */
 .profit-chart {
   display: flex;
+  justify-content: space-between;
   align-items: flex-end;
-  gap: 16px;
-  height: 160px;
-  margin-top: 16px;
-  padding-top: 16px;
+  height: 70px;
+  padding: 12px 8px;
+}
+
+.profit-bar-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
 }
 
 .profit-bar {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  text-align: center;
+  width: 14px;
+  height: var(--h);
+  background: linear-gradient(180deg, #34d399, #10b981);
+  border-radius: 8px;
+  transition: height 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  position: relative;
+}
+.profit-bar.zero {
+  height: 2px;
+  opacity: 0.4;
+}
+.profit-bar::after {
+  content: attr(data-value);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.8);
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 6px;
   font-size: 12px;
-  align-items: center;
-  justify-content: flex-end;
-  color: #cbd5e1;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+.profit-bar:hover::after {
+  opacity: 1;
+}
+.profit-value {
+  font-size: 12px;
+  font-weight: 600;
+  color: #34d399; /* same green as bars */
+  line-height: 1;
 }
 
+.profit-label {
+  font-size: 12px;
+  opacity: 0.7;
+} 
+
 .profit-bar .bar {
-  width: 18px;
+  width: 100%;
   background: linear-gradient(
     180deg,
     var(--primary),
     var(--secondary)
   );
-  border-radius: 6px;
+  border-radius: 6px 6px 0 0;
   transition: height 0.3s ease;
-  margin-bottom: 6px;
-  min-height: 4px;
 }
 
 .profit-bar span {
+  display: block;
   margin-top: 4px;
   color: var(--text-primary);
-  font-size: 12px;
 }
 
 .profit-bar small {
   color: var(--text-muted);
-  opacity: 0.6;
 }
 /* ===== Confirm Modal ===== */
 .confirm-overlay {
@@ -1049,73 +1082,30 @@ margin-bottom: 12px;
   margin: 12px 0;
 }
 /* ===============================
-   CART SCROLL AREA
-   =============================== */
+   CART SECTION – HARD BOUND
+   Shows 3 items, scrolls from 4th
+=============================== */
 
-/* Optional: smooth scrollbar */
-.cart-scroll::-webkit-scrollbar {
-  width: 6px;
-}
-.cart-scroll::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,0.15);
-  border-radius: 6px;
-}
 #cart-list {
-  max-height: 92px;          /* adjustable */
+  max-height: 96px;      /* ~3 cart rows */
   overflow-y: auto;
   margin-top: 8px;
+  padding: 8px 6px 6px 0;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.03);
-  padding: 6px 6px 6px 0;
+  background: rgba(255,255,255,0.03);
+  
 }
 
-/* Optional: nicer scrollbar */
+/* Scrollbar styling (optional but clean) */
 #cart-list::-webkit-scrollbar {
   width: 6px;
 }
 
 #cart-list::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,0.25);
+  background: rgba(255, 255, 255, 0.25);
   border-radius: 6px;
 }
+
 #cart-list::-webkit-scrollbar-track {
   background: transparent;
-}
-.cart-summary {
-  bottom: 0;
-  background: var(--card-bg);
-  padding-top: 8px;
-}
-#item-sale-section {
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-}
-
-
-.item-sale-footer {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--card-border);
-}
-.cart-box {
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 10px;
-  padding: 8px;
-  margin-top: 6px;
-
-
-/* height of approx 3 cart rows */
-  max-height: 150px;
-
-
-  overflow-y: auto;
-}
-/* Optional: smooth scrollbar look */
-.cart-box::-webkit-scrollbar {
-  width: 6px;
-}
-.cart-box::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,0.25);
-  border-radius: 4px;
 }
