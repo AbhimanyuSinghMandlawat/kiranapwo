@@ -792,7 +792,9 @@ pointer-events: auto;
 .cart-row {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 8px;
+  align-items: center;
+  padding: 6px 0;
+  height: 44px;
 }
 
 .cart-controls {
@@ -1078,4 +1080,32 @@ margin-bottom: 12px;
   display: flex;
   gap: 10px;
   margin: 12px 0;
+}
+/* ===============================
+   CART SECTION – HARD BOUND
+   Shows 3 items, scrolls from 4th
+=============================== */
+
+#cart-list {
+  max-height: 96px;      /* ~3 cart rows */
+  overflow-y: auto;
+  margin-top: 8px;
+  padding: 8px 6px 6px 0;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.03);
+  
+}
+
+/* Scrollbar styling (optional but clean) */
+#cart-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+#cart-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 6px;
+}
+
+#cart-list::-webkit-scrollbar-track {
+  background: transparent;
 }
