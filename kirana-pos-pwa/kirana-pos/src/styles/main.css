@@ -481,17 +481,61 @@ body {
 /* ===================== PROFIT CHART ===================== */
 .profit-chart {
   display: flex;
+  justify-content: space-between;
   align-items: flex-end;
-  gap: 10px;
-  height: 160px;
-  margin-top: 16px;
+  height: 70px;
+  padding: 12px 8px;
+}
+
+.profit-bar-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
 }
 
 .profit-bar {
-  flex: 1;
-  text-align: center;
-  font-size: 11px;
+  width: 14px;
+  height: var(--h);
+  background: linear-gradient(180deg, #34d399, #10b981);
+  border-radius: 8px;
+  transition: height 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+  position: relative;
 }
+.profit-bar.zero {
+  height: 2px;
+  opacity: 0.4;
+}
+.profit-bar::after {
+  content: attr(data-value);
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.8);
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+.profit-bar:hover::after {
+  opacity: 1;
+}
+.profit-value {
+  font-size: 12px;
+  font-weight: 600;
+  color: #34d399; /* same green as bars */
+  line-height: 1;
+}
+
+.profit-label {
+  font-size: 12px;
+  opacity: 0.7;
+} 
 
 .profit-bar .bar {
   width: 100%;

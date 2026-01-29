@@ -3,6 +3,22 @@ import { getAllSales } from "../services/db";
 import { getLast7DaysProfit } from "../services/profitTrends";
 import { getStockAlerts } from "../services/stockAlerts";
 
+/* =====================
+   PROFIT BAR VISUAL CONFIG
+   (ADDED – does NOT break anything)
+===================== */
+const MAX_BAR_HEIGHT = 48; // px
+const MIN_BAR_HEIGHT = 6;  // px
+
+function getBarHeight(value, maxValue) {
+  if (value <= 0) return 2;
+
+  const scaled =
+    (Math.sqrt(value) / Math.sqrt(maxValue)) * MAX_BAR_HEIGHT;
+
+  return Math.max(MIN_BAR_HEIGHT, scaled);
+}
+
 export async function renderReports(container) {
   const sales = await getAllSales();
 
@@ -53,19 +69,26 @@ export async function renderReports(container) {
           .join("");
 
   /* =====================
-     PROFIT TREND
+     PROFIT TREND (IMPROVED VISUAL)
   ===================== */
   const profitData = await getLast7DaysProfit();
+
+  // keep your safety fallback
   const maxProfit = Math.max(...profitData.map(p => p.profit), 1);
 
   const chartBars = profitData
     .map(p => {
-      const height = (p.profit / maxProfit) * 100;
+      const heightPx = getBarHeight(p.profit, maxProfit);
+
       return `
-        <div class="profit-bar">
-          <div class="bar" style="height:${height}%"></div>
-          <span>₹${p.profit}</span>
-          <small>${p.date.split("/")[0]}</small>
+        <div class="profit-bar-wrapper">
+          <span class="profit-value">₹${p.profit}</span>
+          <div
+            class="profit-bar ${p.profit === 0 ? "zero" : ""}"
+            style="--h:${heightPx}px"
+            data-value="₹${p.profit}"
+          ></div>
+          <span class="profit-label">${p.date.split("/")[0]}</span>
         </div>
       `;
     })
