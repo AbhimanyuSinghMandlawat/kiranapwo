@@ -24,7 +24,10 @@ export async function renderReports(container) {
   const weeklySales = sales.filter(
     s => new Date(s.timestamp) >= weekAgo
   );
-  const weeklyTotal = weeklySales.reduce((sum, s) => sum + s.amount, 0);
+  const weeklyTotal = weeklySales.reduce(
+    (sum, s) => sum + s.amount,
+    0
+  );
 
   /* =====================
      MONTHLY SALES
@@ -36,7 +39,10 @@ export async function renderReports(container) {
     const d = new Date(s.timestamp);
     return d.getMonth() === month && d.getFullYear() === year;
   });
-  const monthlyTotal = monthlySales.reduce((sum, s) => sum + s.amount, 0);
+  const monthlyTotal = monthlySales.reduce(
+    (sum, s) => sum + s.amount,
+    0
+  );
 
   /* =====================
      STOCK ALERTS
@@ -48,24 +54,34 @@ export async function renderReports(container) {
       ? "<p>All stocks are sufficient 👍</p>"
       : alerts
           .map(
-            a => `<p>⚠ ${a.name} — Only ${a.quantity} left</p>`
+            a =>
+              `<p>⚠ ${a.name} — Only ${a.quantity} left</p>`
           )
           .join("");
 
   /* =====================
-     PROFIT TREND
+     PROFIT TREND (LAST 7 CALENDAR DAYS)
   ===================== */
   const profitData = await getLast7DaysProfit();
-  const maxProfit = Math.max(...profitData.map(p => p.profit), 1);
+
+  const maxProfit = Math.max(
+    ...profitData.map(p => p.profit),
+    1
+  );
 
   const chartBars = profitData
     .map(p => {
-      const height = (p.profit / maxProfit) * 100;
+      const height = Math.round(
+        (p.profit / maxProfit) * 100
+      );
+
+      const dayLabel = p.date.split("/")[0];
+
       return `
         <div class="profit-bar">
           <div class="bar" style="height:${height}%"></div>
           <span>₹${p.profit}</span>
-          <small>${p.date.split("/")[0]}</small>
+          <small>${dayLabel}</small>
         </div>
       `;
     })

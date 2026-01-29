@@ -135,12 +135,14 @@ body {
   width: 100%;
   max-width: 520px;
   max-height: 90vh;
-  overflow: visible;
+  overflow: hidden;
   padding: 28px;
   background: var(--card-bg);
   backdrop-filter: var(--blur);
   border: 1px solid var(--card-border);
   border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
 }
 
 .glass-card h1 {
@@ -482,36 +484,45 @@ body {
 .profit-chart {
   display: flex;
   align-items: flex-end;
-  gap: 10px;
+  gap: 16px;
   height: 160px;
   margin-top: 16px;
+  padding-top: 16px;
 }
 
 .profit-bar {
   flex: 1;
+  display: flex;
+  flex-direction: column;
   text-align: center;
-  font-size: 11px;
+  font-size: 12px;
+  align-items: center;
+  justify-content: flex-end;
+  color: #cbd5e1;
 }
 
 .profit-bar .bar {
-  width: 100%;
+  width: 18px;
   background: linear-gradient(
     180deg,
     var(--primary),
     var(--secondary)
   );
-  border-radius: 6px 6px 0 0;
+  border-radius: 6px;
   transition: height 0.3s ease;
+  margin-bottom: 6px;
+  min-height: 4px;
 }
 
 .profit-bar span {
-  display: block;
   margin-top: 4px;
   color: var(--text-primary);
+  font-size: 12px;
 }
 
 .profit-bar small {
   color: var(--text-muted);
+  opacity: 0.6;
 }
 /* ===== Confirm Modal ===== */
 .confirm-overlay {
@@ -748,7 +759,9 @@ pointer-events: auto;
 .cart-row {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 8px;
+  align-items: center;
+  padding: 6px 0;
+  height: 44px;
 }
 
 .cart-controls {
@@ -1034,4 +1047,75 @@ margin-bottom: 12px;
   display: flex;
   gap: 10px;
   margin: 12px 0;
+}
+/* ===============================
+   CART SCROLL AREA
+   =============================== */
+
+/* Optional: smooth scrollbar */
+.cart-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.cart-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.15);
+  border-radius: 6px;
+}
+#cart-list {
+  max-height: 92px;          /* adjustable */
+  overflow-y: auto;
+  margin-top: 8px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 6px 6px 6px 0;
+}
+
+/* Optional: nicer scrollbar */
+#cart-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+#cart-list::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.25);
+  border-radius: 6px;
+}
+#cart-list::-webkit-scrollbar-track {
+  background: transparent;
+}
+.cart-summary {
+  bottom: 0;
+  background: var(--card-bg);
+  padding-top: 8px;
+}
+#item-sale-section {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+
+.item-sale-footer {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--card-border);
+}
+.cart-box {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 8px;
+  margin-top: 6px;
+
+
+/* height of approx 3 cart rows */
+  max-height: 150px;
+
+
+  overflow-y: auto;
+}
+/* Optional: smooth scrollbar look */
+.cart-box::-webkit-scrollbar {
+  width: 6px;
+}
+.cart-box::-webkit-scrollbar-thumb {
+  background: rgba(255,255,255,0.25);
+  border-radius: 4px;
 }
