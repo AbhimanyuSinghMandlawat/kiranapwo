@@ -1,7 +1,10 @@
 const DB_NAME = "kirana_pos_db";
-const DB_VERSION = 6;
+const DB_VERSION = 7;
 const SALES_STORE = "sales";
 const STOCK_STORE = "stocks";
+const USER_STORE = "users";
+const SESSION_STORE = "sessions";
+
 
 function openDB() {
   return new Promise((resolve, reject) => {
@@ -9,6 +12,16 @@ function openDB() {
 
     req.onupgradeneeded = e => {
       const db = e.target.result;
+      if (!db.objectStoreNames.contains(USER_STORE)) {
+        const u = db.createObjectStore(USER_STORE, { keyPath: "id" });
+        u.createIndex("username", "username", { unique: true });
+        u.createIndex("role", "role");
+      }
+
+      if (!db.objectStoreNames.contains(SESSION_STORE)) {
+        db.createObjectStore(SESSION_STORE, { keyPath: "id" });
+      }
+
 
       if (!db.objectStoreNames.contains(SALES_STORE)) {
         const s = db.createObjectStore(SALES_STORE, { keyPath: "id" });
@@ -155,5 +168,58 @@ export async function processSale(sale) {
     } catch (e) {
       reject(e);
     }
+  });
+}
+// ===== USER FUNCTIONS =====
+
+export async function saveUser(user) {
+  const db = await openDB();
+  return new Promise(resolve => {
+    const tx = db.transaction(USER_STORE, "readwrite");
+    tx.objectStore(USER_STORE).put(user);
+    tx.oncomplete = resolve;
+  });
+}
+
+export async function getAllUsers() {
+  const db = await openDB();
+  return new Promise(resolve => {
+    const tx = db.transaction(USER_STORE, "readonly");
+    const req = tx.objectStore(USER_STORE).getAll();
+    req.onsuccess = () => resolve(req.result || []);
+  });
+}
+
+export async function getUserByUsername(username) {
+  const users = await getAllUsers();
+  return users.find(u => u.username === username);
+}
+
+// ===== SESSION FUNCTIONS =====
+
+export async function saveSession(session) {
+  const db = await openDB();
+  return new Promise(resolve => {
+    const tx = db.transaction(SESSION_STORE, "readwrite");
+    tx.objectStore(SESSION_STORE).put(session);
+    tx.oncomplete = resolve;
+  });
+}
+
+export async function getSession() {
+  const db = await openDB();
+  return new Promise(resolve => {
+    const tx = db.transaction(SESSION_STORE, "readonly");
+    const req = tx.objectStore(SESSION_STORE).getAll();
+    req.onsuccess = () => resolve(req.result[0] || null);
+  });
+}
+
+export async function clearSession() {
+  const db = await openDB();
+  return new Promise(resolve => {
+    const tx = db.transaction(SESSION_STORE, "readwrite");
+    tx.objectStore(SESSION_STORE).clear();
+    tx.oncomplete = resolve;
   });
 }
