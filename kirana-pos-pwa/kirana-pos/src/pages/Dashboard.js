@@ -28,6 +28,10 @@ export async function renderDashboard(container) {
     <section class="dashboard">
       <h1>Dashboard</h1>
 
+      <button id="view-summary" class="btn-secondary">
+        📊 View Today's Summary
+      </button>
+
       <div class="cards">
         <div class="card">
           <p>Total Sales</p>
@@ -69,21 +73,23 @@ export async function renderDashboard(container) {
 
   container.innerHTML = renderLayout(content);
 
+  document.getElementById("view-summary").onclick = async () => {
+   const summary = await getDailySummary();
+
+   document.body.insertAdjacentHTML(
+     "beforeend",
+     renderDailySummary(summary)
+    );
+
+   document.getElementById("close-summary").onclick = () => {
+     document.querySelector(".daily-summary-overlay").remove();
+    };
+  };
+
+
   // ✅ NUMBER ANIMATION (unchanged logic)
   container.querySelectorAll(".card h2").forEach(el => {
     const v = parseInt(el.textContent.replace(/\D/g, ""));
     if (!isNaN(v)) animateNumber(el, v);
   });
-
-  // ✅ DAILY SUMMARY MODAL (unchanged)
-  const today = new Date().toLocaleDateString();
-  if (localStorage.getItem("lastSummaryDate") !== today) {
-    const summary = await getDailySummary();
-    document.body.insertAdjacentHTML("beforeend", renderDailySummary(summary));
-
-    document.getElementById("close-summary").onclick = () => {
-      document.querySelector(".daily-summary-overlay").remove();
-      localStorage.setItem("lastSummaryDate", today);
-    };
-  }
 }

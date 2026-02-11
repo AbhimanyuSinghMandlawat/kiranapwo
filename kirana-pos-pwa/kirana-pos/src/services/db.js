@@ -1,5 +1,5 @@
 const DB_NAME = "kirana_pos_db";
-const DB_VERSION = 7;
+const DB_VERSION = 9;
 const SALES_STORE = "sales";
 const STOCK_STORE = "stocks";
 const USER_STORE = "users";

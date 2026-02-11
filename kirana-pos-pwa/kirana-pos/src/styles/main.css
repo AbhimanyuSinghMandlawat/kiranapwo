@@ -1109,3 +1109,68 @@ margin-bottom: 12px;
 #cart-list::-webkit-scrollbar-track {
   background: transparent;
 }
+.auth-container {
+  max-width: 420px;
+  margin: 80px auto;
+  padding: 30px;
+  background: #111827;
+  border-radius: 14px;
+  text-align: center;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+}
+
+.auth-container h2 {
+  margin-bottom: 20px;
+  color: #f3f4f6;
+}
+
+.auth-container input {
+  display: block;
+  width: 100%;
+  margin: 12px 0;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #374151;
+  background: #0f172a;
+  color: white;
+}
+
+.auth-container button {
+  width: 100%;
+  margin: 10px 0;
+  padding: 12px;
+  border-radius: 10px;
+  border: none;
+  background: #2563eb;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.auth-container button:hover {
+  background: #1d4ed8;
+  transform: translateY(-2px);
+}
+
+.auth-container #msg {
+  margin-top: 10px;
+  color: #f87171;
+}
+.btn-secondary {
+  padding: 10px 16px;
+  border-radius: 8px;
+  border: none;
+  background: #2563eb;
+  color: white;
+  font-size: 14px;
+  cursor: pointer;
+  margin-bottom: 15px;
+  transition: all 0.2s ease;
+}
+
+.btn-secondary:hover {
+  background: #1d4ed8;
+}
+
+
