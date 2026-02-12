@@ -1,17 +1,30 @@
 const DB_NAME = "kirana_pos_db";
-const DB_VERSION = 9;
+const DB_VERSION = 10;     // only change: increased version
+
 const SALES_STORE = "sales";
 const STOCK_STORE = "stocks";
 const USER_STORE = "users";
 const SESSION_STORE = "sessions";
 
+// ---- NEW STORES (ADDED ONLY) ----
+const ADVANCE_STORE = "advances";
+const PAYROLL_STORE = "payroll_records";
+const SALARY_HISTORY_STORE = "salary_history";
+const STAFF_HISTORY_STORE = "staff_history";
 
-function openDB() {
+
+export function openDB() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
 
     req.onupgradeneeded = e => {
       const db = e.target.result;
+
+      if (!db.objectStoreNames.contains("staff_history")) {
+        db.createObjectStore("staff_history", { keyPath: "id" });
+      }
+
+
       if (!db.objectStoreNames.contains(USER_STORE)) {
         const u = db.createObjectStore(USER_STORE, { keyPath: "id" });
         u.createIndex("username", "username", { unique: true });
@@ -22,7 +35,6 @@ function openDB() {
         db.createObjectStore(SESSION_STORE, { keyPath: "id" });
       }
 
-
       if (!db.objectStoreNames.contains(SALES_STORE)) {
         const s = db.createObjectStore(SALES_STORE, { keyPath: "id" });
         s.createIndex("paymentMethod", "paymentMethod");
@@ -32,12 +44,29 @@ function openDB() {
       if (!db.objectStoreNames.contains(STOCK_STORE)) {
         db.createObjectStore(STOCK_STORE, { keyPath: "id" });
       }
+
+      // ===== NEW PAYROLL STORES (ONLY ADDITION) =====
+
+      if (!db.objectStoreNames.contains(ADVANCE_STORE)) {
+        const a = db.createObjectStore(ADVANCE_STORE, { keyPath: "advanceId" });
+        a.createIndex("staffId", "staffId");
+      }
+
+      if (!db.objectStoreNames.contains(PAYROLL_STORE)) {
+        const p = db.createObjectStore(PAYROLL_STORE, { keyPath: "recordId" });
+        p.createIndex("staffId", "staffId");
+        p.createIndex("monthYear", "monthYear");
+      }
+
+      if (!db.objectStoreNames.contains(SALARY_HISTORY_STORE)) {
+        const s = db.createObjectStore(SALARY_HISTORY_STORE, { keyPath: "historyId" });
+        s.createIndex("staffId", "staffId");
+      }
     };
 
     req.onsuccess = e => {
       const db = e.target.result;
 
-      // 🔴 REQUIRED: prevent blocked upgrades / HMR issues
       db.onversionchange = () => {
         db.close();
         console.warn("IndexedDB connection closed due to version change");
@@ -170,7 +199,8 @@ export async function processSale(sale) {
     }
   });
 }
-// ===== USER FUNCTIONS =====
+
+/* ===== USER FUNCTIONS ===== */
 
 export async function saveUser(user) {
   const db = await openDB();
@@ -195,7 +225,7 @@ export async function getUserByUsername(username) {
   return users.find(u => u.username === username);
 }
 
-// ===== SESSION FUNCTIONS =====
+/* ===== SESSION FUNCTIONS ===== */
 
 export async function saveSession(session) {
   const db = await openDB();
@@ -223,3 +253,81 @@ export async function clearSession() {
     tx.oncomplete = resolve;
   });
 }
+
+/* ===== NEW PAYROLL FUNCTIONS (ONLY ADDITIONS) ===== */
+
+export async function addAdvance(advance) {
+  const db = await openDB();
+  return new Promise(resolve => {
+    const tx = db.transaction(ADVANCE_STORE, "readwrite");
+    tx.objectStore(ADVANCE_STORE).put(advance);
+    tx.oncomplete = resolve;
+  });
+}
+
+export async function getAdvancesByStaff(staffId) {
+  const db = await openDB();
+  return new Promise(resolve => {
+    const tx = db.transaction(ADVANCE_STORE, "readonly");
+    const req = tx.objectStore(ADVANCE_STORE).getAll();
+    req.onsuccess = () =>
+      resolve(req.result.filter(a => a.staffId === staffId));
+  });
+}
+
+export async function savePayrollRecord(record) {
+  const db = await openDB();
+  return new Promise(resolve => {
+    const tx = db.transaction(PAYROLL_STORE, "readwrite");
+    tx.objectStore(PAYROLL_STORE).put(record);
+    tx.oncomplete = resolve;
+  });
+}
+
+export async function getPayrollRecords() {
+  const db = await openDB();
+  return new Promise(resolve => {
+    const tx = db.transaction(PAYROLL_STORE, "readonly");
+    const req = tx.objectStore(PAYROLL_STORE).getAll();
+    req.onsuccess = () => resolve(req.result || []);
+  });
+}
+
+export async function addSalaryHistory(history) {
+  const db = await openDB();
+  return new Promise(resolve => {
+    const tx = db.transaction(SALARY_HISTORY_STORE, "readwrite");
+    tx.objectStore(SALARY_HISTORY_STORE).put(history);
+    tx.oncomplete = resolve;
+  });
+}
+
+export async function getSalaryHistory(staffId) {
+  const db = await openDB();
+  return new Promise(resolve => {
+    const tx = db.transaction(SALARY_HISTORY_STORE, "readonly");
+    const req = tx.objectStore(SALARY_HISTORY_STORE).getAll();
+    req.onsuccess = () =>
+      resolve(req.result.filter(h => h.staffId === staffId));
+  });
+}
+export async function addStaffHistory(record) {
+  const db = await openDB();
+  return new Promise(resolve => {
+    const tx = db.transaction(STAFF_HISTORY_STORE, "readwrite");
+    tx.objectStore(STAFF_HISTORY_STORE).put(record);
+    tx.oncomplete = resolve;
+  });
+}
+
+export async function getStaffHistory(staffId) {
+  const db = await openDB();
+  return new Promise(resolve => {
+    const tx = db.transaction(STAFF_HISTORY_STORE, "readonly");
+    const req = tx.objectStore(STAFF_HISTORY_STORE).getAll();
+    req.onsuccess = () => {
+      resolve(req.result.filter(r => r.staffId === staffId));
+    };
+  });
+}
+

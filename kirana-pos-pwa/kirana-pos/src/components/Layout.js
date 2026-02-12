@@ -19,6 +19,7 @@ export function renderLayout(contentHtml) {
           <a href="#" data-page="credit">Credit Score</a>
           <a href="#" data-page="ledger">Credit Ledger</a>
           <a href="#" data-page="stock">Stock</a>
+          <a href="#" data-page="manage-staff">Manage Staff</a>
 
           <!-- NEW: Logout Option -->
           <a href="#" data-page="logout">Logout</a>

@@ -8,7 +8,10 @@ import { renderStock } from "./pages/Stock";
 import Welcome from "./pages/Welcome";
 import { renderOwnerSetup, renderLogin } from "./auth/authUI";
 import { getCurrentUser, logout } from "./auth/authService";
-import { getAllUsers } from "./services/db";     // <-- ADD THIS
+import { getAllUsers } from "./services/db";
+
+import { renderManageStaff } from "./pages/ManageStaff";
+import { renderStaffHistory } from "./pages/StaffHistory";
 
 export async function navigate(page) {
   const app = document.getElementById("app");
@@ -21,19 +24,18 @@ export async function navigate(page) {
   if (!user) {
     const users = await getAllUsers();
     const ownerExists = users.some(u => u.role === "owner");
+
     if (page === "owner-setup") {
       if (ownerExists) {
         renderLogin(app);
       } else {
-      renderOwnerSetup(app);
+        renderOwnerSetup(app);
       }
-      
       return;
     }
 
     if (page === "login") {
       renderLogin(app);
-      
       return;
     }
 
@@ -44,6 +46,11 @@ export async function navigate(page) {
   }
 
   // ----- USER IS LOGGED IN -----
+
+  // ROLE PROTECTION: only owner can open manage-staff
+  if (page === "manage-staff" && user.role !== "owner") {
+    return navigate("dashboard");
+  }
 
   if (page === "logout") {
     await logout();
@@ -57,7 +64,9 @@ export async function navigate(page) {
     reports: renderReports,
     credit: renderCreditScore,
     ledger: renderCreditLedger,
-    stock: renderStock
+    stock: renderStock,
+    "manage-staff": renderManageStaff,
+    "staff-history": renderStaffHistory
   };
 
   // ✅ Render selected page
@@ -70,7 +79,8 @@ export async function navigate(page) {
 export function attachNavEvents() {
   document.querySelectorAll("[data-page]").forEach(btn => {
     btn.onclick = (e) => {
-      e.preventDefault(); 
+      e.preventDefault();
+
       document
         .querySelectorAll("[data-page]")
         .forEach(b => b.classList.remove("active"));
@@ -92,4 +102,3 @@ window.onhashchange = () => {
 window.onload = () => {
   navigate(location.hash.replace("#", "") || "dashboard");
 };
-
