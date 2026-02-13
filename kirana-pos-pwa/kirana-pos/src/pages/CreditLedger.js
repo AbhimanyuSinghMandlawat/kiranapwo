@@ -21,5 +21,5 @@ export async function renderCreditLedger(container) {
     </section>
   `;
 
-  container.innerHTML = renderLayout(content);
+  container.innerHTML = await renderLayout(content);
 }

@@ -4,6 +4,7 @@ import { ROLES } from "../auth/roles";
 import { showToast } from "../utils/toast";
 import { changeStaffSalary, softDeleteStaff } from "../services/payroll";
 import { getCurrentUser } from "../auth/authService";
+import { logStaffAction } from "../services/staffHistory";
 
 
 
@@ -109,7 +110,10 @@ export async function renderManageStaff(container) {
     </section>
   `;
 
-  container.innerHTML = renderLayout(content);
+  container.innerHTML = await renderLayout(content);
+
+  // safety: stop if DOM changed due to navigation
+  if (!document.getElementById("create-staff")) return;
 
   // ===== CREATE STAFF =====
 
@@ -150,7 +154,9 @@ export async function renderManageStaff(container) {
 
     showToast("Staff created successfully", "success");
 
-    renderManageStaff(container);
+    await renderManageStaff(container);
+    return;
+
   };
 
   // ===== CHANGE SALARY =====
@@ -174,7 +180,9 @@ export async function renderManageStaff(container) {
 
       showToast("Salary updated", "success");
 
-      renderManageStaff(container);
+      await renderManageStaff(container);
+      return;
+
     };
   });
 
@@ -193,7 +201,9 @@ export async function renderManageStaff(container) {
 
       showToast("Staff marked as left", "success");
 
-      renderManageStaff(container);
+      await renderManageStaff(container);
+      return;
+
     };
   });
 
@@ -209,7 +219,9 @@ export async function renderManageStaff(container) {
 
       showToast("Staff deleted successfully", "success");
 
-      renderManageStaff(container);
+      await renderManageStaff(container);
+      return;
+
     };
   });
 

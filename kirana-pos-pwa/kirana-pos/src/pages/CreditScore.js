@@ -50,7 +50,7 @@ export async function renderCreditScore(container) {
   const profiles = await getCustomerProfiles();
   const creditData = await getCreditTrustScores();
 
-  container.innerHTML = renderLayout(`
+  container.innerHTML = await renderLayout(`
     <section class="credit-page">
       <header class="credit-header">
         <h1>Customer Loyalty & Credit</h1>

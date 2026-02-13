@@ -1,0 +1,15 @@
+/* ===== Margin indicator (Opening Inventory) ===== */
+
+.margin {
+  font-weight: 600;
+  text-align: right;
+  letter-spacing: 0.3px;
+}
+
+.margin.profit {
+  color: #22c55e;   /* profit green */
+}
+
+.margin.loss {
+  color: #ef4444;   /* loss red */
+}

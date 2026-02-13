@@ -71,7 +71,8 @@ export async function renderDashboard(container) {
     </section>
   `;
 
-  container.innerHTML = renderLayout(content);
+  container.innerHTML = await renderLayout(content);
+  if (!document.querySelector(".dashboard")) return;
 
   document.getElementById("view-summary").onclick = async () => {
    const summary = await getDailySummary();

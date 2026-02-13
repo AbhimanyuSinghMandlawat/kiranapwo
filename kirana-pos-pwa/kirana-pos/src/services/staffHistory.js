@@ -1,49 +1,80 @@
-import { openDB } from "./db";
+import { addStaffHistory, getStaffHistory as dbGetStaffHistory } from "./db";
 
-const STORE = "staff_history";
+/* =========================================================
+   UNIVERSAL STAFF AUDIT LOGGER
+   Safe against bad callers
+========================================================= */
+export async function logStaffAction(actor, payload = {}) {
 
-export async function logStaffAction(
-  staffId,
-  action,
-  oldValue,
-  newValue,
-  changedBy
-) {
-  const db = await openDB();
+  // If actor missing → do nothing (system action)
+  if (!actor) return;
 
-  return new Promise(resolve => {
-    const tx = db.transaction(STORE, "readwrite");
-    tx.objectStore(STORE).put({
+  // If someone called incorrectly: logStaffAction(actor)
+  if (typeof payload !== "object") return;
+
+  const {
+    module = "general",
+    action = "unknown",
+    summary = "Activity recorded",
+    details = {},
+    targetStaffId = null
+  } = payload;
+
+  try {
+    const record = {
       id: crypto.randomUUID(),
-      staffId,
-      action,
-      oldValue,
-      newValue,
-      changedBy,
-      timestamp: Date.now()
-    });
 
-    tx.oncomplete = resolve;
-  });
+      // who performed action
+      staffId: targetStaffId || actor.id,
+      staffName: actor.name || "Unknown",
+      role: actor.role || "unknown",
+
+      module,
+      action,
+      summary,
+      details,
+
+      timestamp: Date.now()
+    };
+
+    await addStaffHistory(record);
+
+  } catch (err) {
+    // NEVER crash the app because of logging
+    console.warn("Audit log failed:", err);
+  }
 }
 
+/* =========================================================
+   HISTORY READER
+========================================================= */
 export async function getStaffHistory(staffId) {
-  const db = await openDB();
+  const records = await dbGetStaffHistory(staffId);
 
-  return new Promise(resolve => {
-    const tx = db.transaction(STORE, "readonly");
-    const store = tx.objectStore(STORE);
+  // newest first
+  records.sort((a, b) => b.timestamp - a.timestamp);
 
-    const req = store.getAll();
+  return records.map(r => ({
+    ...r,
+    formattedTime: new Date(r.timestamp).toLocaleString(),
+    summary: r.summary || "Activity recorded",
+    module: r.module || "general",
+    action: r.action || "unknown",
+    details: r.details || {}
+  }));
+}
 
-    req.onsuccess = () => {
-      const all = req.result || [];
+/* =========================================================
+   GROUP BY DATE (future use)
+========================================================= */
+export function groupHistoryByDate(history) {
+  const map = {};
 
-      const filtered = all.filter(h => h.staffId === staffId);
-
-      filtered.sort((a, b) => b.timestamp - a.timestamp);
-
-      resolve(filtered);
-    };
+  history.forEach(h => {
+    const date = new Date(h.timestamp).toDateString();
+    if (!map[date]) map[date] = [];
+    map[date].push(h);
   });
+
+  return map;
 }

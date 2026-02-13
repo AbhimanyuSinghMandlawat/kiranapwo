@@ -3,7 +3,11 @@ import "./styles/main.css";
 import { navigate } from "./app";
 import { getNetworkStatus } from "./utils/network";
 import { updateSyncStatus } from "./utils/syncStatus";
-import { seedDefaultStock } from "./services/db";
+import "./styles/theme.css";
+import "./styles/pages/openingStock.css";
+
+
+
 
 /* ===============================
    NETWORK HANDLING
@@ -51,10 +55,6 @@ window.onload = () => {
   navigate(startPage);
 };
 
-// Seed default stock only once
-seedDefaultStock().catch(err => {
-  console.warn("Seed skipped:", err.message);
-});
 
 // Initial network status setup
 setTimeout(handleNetworkChange, 0);

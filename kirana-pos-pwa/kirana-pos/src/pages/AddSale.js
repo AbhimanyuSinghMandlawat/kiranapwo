@@ -48,7 +48,7 @@ function calculateTotal() {
 export async function renderAddSale(container) {
   const stock = await getAllStock();
 
-  container.innerHTML = renderLayout(`
+  container.innerHTML = await renderLayout(`
     <section class="add-sale">
       <div class="glass-card">
         <h1>Add Transaction</h1>

@@ -50,5 +50,5 @@ export async function renderStaffHistory(container) {
     </section>
   `;
 
-  container.innerHTML = renderLayout(content);
+  container.innerHTML = await renderLayout(content);
 }

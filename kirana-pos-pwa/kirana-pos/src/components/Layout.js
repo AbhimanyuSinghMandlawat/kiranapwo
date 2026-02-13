@@ -1,4 +1,14 @@
-export function renderLayout(contentHtml) {
+import { getCurrentUser } from "../auth/authService";
+
+export async function renderLayout(contentHtml) {
+  const user = await getCurrentUser();
+  const role = user?.role;
+
+  // ===== ROLE BASED MENU VISIBILITY =====
+  const isOwner = role === "owner";
+  const isManager = role === "manager";
+  const isCashier = role === "cashier";
+
   // Determine current network state safely
   const online = navigator.onLine;
 
@@ -12,16 +22,18 @@ export function renderLayout(contentHtml) {
       <!-- Sidebar (Desktop) -->
       <aside class="sidebar">
         <h2 class="logo">Kirana POS</h2>
+
         <nav>
           <a href="#" data-page="dashboard">Dashboard</a>
           <a href="#" data-page="add-sale">Add Sale</a>
-          <a href="#" data-page="reports">Reports</a>
-          <a href="#" data-page="credit">Credit Score</a>
-          <a href="#" data-page="ledger">Credit Ledger</a>
-          <a href="#" data-page="stock">Stock</a>
-          <a href="#" data-page="manage-staff">Manage Staff</a>
 
-          <!-- NEW: Logout Option -->
+          ${!isCashier ? `<a href="#" data-page="stock">Stock</a>` : ""}
+          ${!isCashier ? `<a href="#" data-page="reports">Reports</a>` : ""}
+          ${!isCashier ? `<a href="#" data-page="credit">Credit Score</a>` : ""}
+          ${!isCashier ? `<a href="#" data-page="ledger">Credit Ledger</a>` : ""}
+
+          ${isOwner ? `<a href="#" data-page="manage-staff">Manage Staff</a>` : ""}
+
           <a href="#" data-page="logout">Logout</a>
         </nav>
       </aside>
@@ -46,12 +58,14 @@ export function renderLayout(contentHtml) {
       <nav class="bottom-nav">
         <button data-page="dashboard">Home</button>
         <button data-page="add-sale">Sale</button>
-        <button data-page="reports">Reports</button>
-        <button data-page="credit">Credit</button>
-        <button data-page="ledger">Credit Ledger</button>
-        <button data-page="stock">Stock</button>
 
-        <!-- NEW: Logout Button in Mobile Nav -->
+        ${!isCashier ? `<button data-page="stock">Stock</button>` : ""}
+        ${!isCashier ? `<button data-page="reports">Reports</button>` : ""}
+        ${!isCashier ? `<button data-page="credit">Credit</button>` : ""}
+        ${!isCashier ? `<button data-page="ledger">Ledger</button>` : ""}
+
+        ${isOwner ? `<button data-page="manage-staff">Staff</button>` : ""}
+
         <button data-page="logout">Logout</button>
       </nav>
 
