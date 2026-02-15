@@ -1,0 +1,32 @@
+// Financial event meaning (PRIMARY)
+export const ACCOUNT_TYPE = {
+  ITEM_SALE: "ITEM_SALE",
+  PAYMENT_IN: "PAYMENT_IN",
+  ADVANCE_DEPOSIT: "ADVANCE_DEPOSIT",
+  LOAN_GIVEN: "LOAN_GIVEN",
+  LOAN_RETURNED: "LOAN_RETURNED"
+};
+
+// Cash movement
+export const MONEY_DIRECTION = {
+  IN: "IN",
+  OUT: "OUT",
+  NONE: "NONE"
+};
+
+// Stock movement
+export const STOCK_EFFECT = {
+  OUT: "OUT",
+  NONE: "NONE"
+};
+
+// Customer liability impact
+export const LIABILITY_EFFECT = {
+  INCREASE_GOODS_DUE: "INCREASE_GOODS_DUE",
+  DECREASE_GOODS_DUE: "DECREASE_GOODS_DUE",
+  INCREASE_ADVANCE: "INCREASE_ADVANCE",
+  DECREASE_ADVANCE: "DECREASE_ADVANCE",
+  INCREASE_LOAN: "INCREASE_LOAN",
+  DECREASE_LOAN: "DECREASE_LOAN",
+  NONE: "NONE"
+};
