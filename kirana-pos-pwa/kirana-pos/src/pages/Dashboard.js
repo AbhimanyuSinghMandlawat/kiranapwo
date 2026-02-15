@@ -9,12 +9,49 @@ import { renderDailySummary } from "../components/DailySummaryModal";
 
 export async function renderDashboard(container) {
   const sales = await getAllSales();
+  console.group("=== DASHBOARD ACCOUNTING AUDIT ===");
 
-  const totalSales = sales.reduce((s, x) => s + (x.amount || 0), 0);
+  console.table(sales.map(s => ({
+   customer: s.customerName,
+   type: s.accountType,
+   payment: s.paymentMethod,
+   amount: s.amount,
+   date: s.date
+  })));
 
-  const creditTotal = sales
+  const itemSalesDebug = sales.filter(s => s.accountType === "ITEM_SALE");
+
+  console.log("ITEM SALES ONLY:", itemSalesDebug);
+  console.log("TOTAL REVENUE (GOODS SOLD):",
+   itemSalesDebug.reduce((t, x) => t + x.amount, 0)
+  );
+
+  console.log("CREDIT SALES:",
+    itemSalesDebug
+      .filter(s => s.paymentMethod === "credit")
+      .reduce((t, x) => t + x.amount, 0)
+  );
+
+  console.log("TRANSACTION COUNT:", itemSalesDebug.length);
+
+  console.groupEnd();
+
+  /*==============================
+      True Business Metrics
+  ==============================*/
+  //only goods sold count as sales, not returns or exchanges
+  const itemSales = sales.filter(s => s.accountType === "ITEM_SALE");
+
+  //Total revenue genrated from the selling prodicts
+  const totalSales = itemSales.reduce((s, x) => s + (x.amount || 0), 0);
+
+  //only unpaid goods
+
+  const creditTotal = itemSales
     .filter(s => s.paymentMethod === "credit")
-    .reduce((s, x) => s + x.amount, 0);
+    .reduce((s, x) => s + (x.amount || 0), 0);
+    //Actual Purchase event (not loan / advance / settlement)
+    const transactionCount = itemSales.length;
 
   // ✅ TODAY'S PROFIT (shop profit only)
   const todayProfit = await getTodayProfit();
@@ -28,6 +65,10 @@ export async function renderDashboard(container) {
     <section class="dashboard">
       <h1>Dashboard</h1>
 
+      <button id="view-summary" class="btn-secondary">
+        📊 View Today's Summary
+      </button>
+
       <div class="cards">
         <div class="card">
           <p>Total Sales</p>
@@ -36,7 +77,7 @@ export async function renderDashboard(container) {
 
         <div class="card">
           <p>Transactions</p>
-          <h2>${sales.length}</h2>
+          <h2>${transactionCount}</h2>
         </div>
 
         <div class="card">
@@ -67,23 +108,26 @@ export async function renderDashboard(container) {
     </section>
   `;
 
-  container.innerHTML = renderLayout(content);
+  container.innerHTML = await renderLayout(content);
+  if (!document.querySelector(".dashboard")) return;
+
+  document.getElementById("view-summary").onclick = async () => {
+   const summary = await getDailySummary();
+
+   document.body.insertAdjacentHTML(
+     "beforeend",
+     renderDailySummary(summary)
+    );
+
+   document.getElementById("close-summary").onclick = () => {
+     document.querySelector(".daily-summary-overlay").remove();
+    };
+  };
+
 
   // ✅ NUMBER ANIMATION (unchanged logic)
   container.querySelectorAll(".card h2").forEach(el => {
     const v = parseInt(el.textContent.replace(/\D/g, ""));
     if (!isNaN(v)) animateNumber(el, v);
   });
-
-  // ✅ DAILY SUMMARY MODAL (unchanged)
-  const today = new Date().toLocaleDateString();
-  if (localStorage.getItem("lastSummaryDate") !== today) {
-    const summary = await getDailySummary();
-    document.body.insertAdjacentHTML("beforeend", renderDailySummary(summary));
-
-    document.getElementById("close-summary").onclick = () => {
-      document.querySelector(".daily-summary-overlay").remove();
-      localStorage.setItem("lastSummaryDate", today);
-    };
-  }
 }

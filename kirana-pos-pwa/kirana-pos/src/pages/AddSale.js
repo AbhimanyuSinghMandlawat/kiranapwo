@@ -4,6 +4,13 @@ import { navigate } from "../app";
 import { showToast } from "../utils/toast";
 import { searchStock } from "../utils/helpers";
 import { getCreditLedger } from "../services/ledger";
+import {
+  ACCOUNT_TYPE,
+  MONEY_DIRECTION,
+  STOCK_EFFECT,
+  LIABILITY_EFFECT
+} from "../services/transactionTypes";
+
 
 /* ===============================
    STATE
@@ -48,7 +55,7 @@ function calculateTotal() {
 export async function renderAddSale(container) {
   const stock = await getAllStock();
 
-  container.innerHTML = renderLayout(`
+  container.innerHTML = await renderLayout(`
     <section class="add-sale">
       <div class="glass-card">
         <h1>Add Transaction</h1>
@@ -236,16 +243,17 @@ export async function renderAddSale(container) {
   /* ===============================
      SUBMIT
   =============================== */
-  document.getElementById("sale-form").onsubmit = async e => {
-    e.preventDefault();
+ document.getElementById("sale-form").onsubmit = async e => {
+   e.preventDefault();
 
-    if (!selectedPayment) {
-      showToast("Select payment method", "error");
-      return;
-    }
+   if (!selectedPayment) {
+     showToast("Select payment method", "error");
+     return;
+   }
 
-    const isSettlement = document.getElementById("is-settlement").checked;
-    const amount =
+   const isSettlement = document.getElementById("is-settlement").checked;
+
+    let amount =
       saleMode === "items"
         ? calculateTotal()
         : Number(document.getElementById("amount").value);
@@ -258,44 +266,139 @@ export async function renderAddSale(container) {
     const customerName =
       document.getElementById("customer").value.trim() || null;
 
-    /* CREDIT SETTLEMENT CHECK */
+    let advanceAmount = 0;
+    let adjustedSettlementAmount = amount;
+    if (isSettlement && customerName) {
+      const accounts = await import("../services/accountingEngine.js")
+        .then(m => m.computeCustomerAccounts());
+      const acc = accounts[customerName.toLowerCase()] || {
+        goodsDue: 0,
+        loan: 0,
+        advance: 0
+      };
+      if (acc.goodsDue <= 0) {
+        advanceAmount = amount;
+        adjustedSettlementAmount = 0;
+        showToast(`No dues found. ₹${amount} saved as advance`, "info");
+      }
+      else if (amount > acc.goodsDue) {
+        advanceAmount = amount - acc.goodsDue;
+        adjustedSettlementAmount = acc.goodsDue;
+        showToast(
+          `₹${acc.goodsDue} cleared. ₹${advanceAmount} saved as advance`,
+          "info"
+        );
+      }
+      else if (amount === acc.goodsDue) {
+        adjustedSettlementAmount = amount;
+        showToast(`Credit fully cleared`,"success");
+      }
+      else {
+        adjustedSettlementAmount = amount;
+        showToast(`₹${amount} paid • ₹${acc.goodsDue - amount} still pending`, "info");  
+      }  
+    }  
+
+    /* ===============================
+    STEP 1 — HANDLE SETTLEMENT SPLIT
+    =============================== */
+
     if (isSettlement) {
-      const ledger = await getCreditLedger();
-      const entry = ledger.find(
-        l => l.customerName.toLowerCase() === customerName?.toLowerCase()
-      );
-
-      if (!entry) {
-        showToast("No pending credit for this customer", "error");
+      if (!customerName) {
+        showToast("Customer name required for settlement", "error");
         return;
+      }}
+
+      /* ===============================
+      STEP 2 — CLASSIFY TRANSACTION
+      =============================== */
+
+      let accountType = ACCOUNT_TYPE.ITEM_SALE;
+      let moneyDirection = MONEY_DIRECTION.NONE;
+      let stockEffect = STOCK_EFFECT.NONE;
+      let liabilityEffect = LIABILITY_EFFECT.NONE;
+      let referenceSource = selectedPayment;
+
+      // Settlement
+      if (isSettlement) {
+        accountType = ACCOUNT_TYPE.PAYMENT_IN;
+        moneyDirection = MONEY_DIRECTION.IN;
+        liabilityEffect = LIABILITY_EFFECT.DECREASE_GOODS_DUE;
+      } 
+
+      // Item Sale
+      else if (saleMode === "items") {
+        stockEffect = STOCK_EFFECT.OUT;
+
+        if (selectedPayment === "credit") {
+          moneyDirection = MONEY_DIRECTION.NONE;
+          liabilityEffect = LIABILITY_EFFECT.INCREASE_GOODS_DUE;
+        } else {
+          moneyDirection = MONEY_DIRECTION.IN;
+        }
       }
 
-      if (amount > entry.balance) {
-        showToast(`Settlement exceeds pending ₹${entry.balance}`, "error");
-        return;
+      // Quick entry
+      else {
+        if (selectedPayment === "credit") {
+          accountType = ACCOUNT_TYPE.LOAN_GIVEN;
+          moneyDirection = MONEY_DIRECTION.OUT;
+          liabilityEffect = LIABILITY_EFFECT.INCREASE_LOAN;
+          referenceSource = "loan";
+        } else {
+          accountType = ACCOUNT_TYPE.ADVANCE_DEPOSIT;
+          moneyDirection = MONEY_DIRECTION.IN;
+          liabilityEffect = LIABILITY_EFFECT.INCREASE_ADVANCE;
+          referenceSource = "advance";
+        }
       }
+
+      /* ===============================
+      STEP 3 — SAVE PRIMARY TRANSACTION
+      =============================== */
+
+      const sale = {
+        id: crypto.randomUUID(),
+        amount:isSettlement ? adjustedSettlementAmount : amount,
+        items: saleMode === "items" ? cartItems : [],
+        paymentMethod: selectedPayment,
+        referenceSource,
+        accountType,
+        moneyDirection,
+        stockEffect,
+        liabilityEffect,
+        customerName,
+        transactionType: isSettlement ? "settlement" : "sale",
+        date: new Date().toLocaleDateString(),
+        timestamp: Date.now(),
+        estimatedProfit: 0
+      };
+
+      if (accountType === ACCOUNT_TYPE.ITEM_SALE)
+        await processSale(sale);
+      else
+        await saveSale(sale);
+
+      /* ===============================
+      STEP 4 — SAVE ADVANCE (SECOND ENTRY)
+      =============================== */
+
+      if (advanceAmount > 0) {
+        await saveSale({
+        ...sale,
+        id: crypto.randomUUID(),
+        amount: advanceAmount,
+        accountType: ACCOUNT_TYPE.ADVANCE_DEPOSIT,
+        moneyDirection: MONEY_DIRECTION.IN,
+        liabilityEffect: LIABILITY_EFFECT.INCREASE_ADVANCE,
+        referenceSource: "advance",
+        transactionType: "advance",
+        estimatedProfit: 0
+      });
     }
-
-    const sale = {
-      id: crypto.randomUUID(),
-      amount,
-      items: saleMode === "items" ? cartItems : [],
-      paymentMethod: selectedPayment,
-      customerName,
-      transactionType: isSettlement ? "settlement" : "sale",
-      date: new Date().toLocaleDateString(),
-      timestamp: Date.now(),
-      estimatedProfit: 0
-    };
-
-    saleMode === "items"
-      ? await processSale(sale)
-      : await saveSale({
-          ...sale,
-          estimatedProfit: Math.round(amount * 0.2)
-       }); // assume 20% profit for quick sales
 
     showToast("Transaction saved", "success");
     navigate("dashboard");
   };
+
 }

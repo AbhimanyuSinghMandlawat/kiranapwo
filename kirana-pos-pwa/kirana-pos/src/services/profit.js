@@ -1,7 +1,9 @@
 import { getAllSales } from "./db";
+import { ACCOUNT_TYPE } from "./transactionTypes";
 
 /* ===============================
    TODAY'S PROFIT
+   Only goods sold generate profit
 =============================== */
 export async function getTodayProfit() {
   const sales = await getAllSales();
@@ -11,12 +13,9 @@ export async function getTodayProfit() {
     .filter(
       s =>
         s.date === today &&
-        s.transactionType === "sale"
+        s.accountType === ACCOUNT_TYPE.ITEM_SALE
     )
-    .reduce((sum, s) => {
-      const profit = Number(s.estimatedProfit) || 0;
-      return sum + profit;
-    }, 0);
+    .reduce((sum, s) => sum + (Number(s.estimatedProfit) || 0), 0);
 }
 
 /* ===============================
@@ -25,12 +24,7 @@ export async function getTodayProfit() {
 export async function getTotalProfit() {
   const sales = await getAllSales();
 
-  return sales.reduce((sum, s) => {
-    const profit =
-      s.transactionType === "sale"
-        ? Number(s.estimatedProfit) || 0
-        : 0;
-
-    return sum + profit;
-  }, 0);
+  return sales
+    .filter(s => s.accountType === ACCOUNT_TYPE.ITEM_SALE)
+    .reduce((sum, s) => sum + (Number(s.estimatedProfit) || 0), 0);
 }

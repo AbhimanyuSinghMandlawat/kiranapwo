@@ -3,12 +3,19 @@ import "./styles/main.css";
 import { navigate } from "./app";
 import { getNetworkStatus } from "./utils/network";
 import { updateSyncStatus } from "./utils/syncStatus";
-import { seedDefaultStock } from "./services/db";
+import "./styles/theme.css";
+import "./styles/pages/openingStock.css";
+
+
+
 
 /* ===============================
    NETWORK HANDLING
 =============================== */
+
 function handleNetworkChange() {
+  const page = location.hash.replace("#", "") || "dashboard";
+
   const networkEl = document.getElementById("network-status");
 
   if (networkEl) {
@@ -22,30 +29,40 @@ function handleNetworkChange() {
     updateSyncStatus("offline");
   } else {
     updateSyncStatus("syncing");
+
     setTimeout(() => {
       const time = new Date().toLocaleTimeString();
       localStorage.setItem("lastSyncTime", time);
       updateSyncStatus("synced", time);
     }, 1000);
   }
+
+  // Re-navigate to current page to refresh UI state
+  navigate(page);
 }
 
+// Listen for online/offline changes
 window.addEventListener("online", handleNetworkChange);
 window.addEventListener("offline", handleNetworkChange);
 
 /* ===============================
    APP START
 =============================== */
-navigate("dashboard");
 
-seedDefaultStock().catch(err => {
-  console.warn("Seed skipped:", err.message);
-});
+// Start app from current hash or default dashboard
+window.onload = () => {
+  const startPage = location.hash.replace("#", "") || "dashboard";
+  navigate(startPage);
+};
+
+
+// Initial network status setup
 setTimeout(handleNetworkChange, 0);
 
 /* ===============================
    SERVICE WORKER (PROD ONLY)
 =============================== */
+
 if ("serviceWorker" in navigator && import.meta.env.PROD) {
   navigator.serviceWorker.register("/sw.js");
 }
