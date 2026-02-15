@@ -1,78 +1,113 @@
+// src/services/healthIndex.js
+
 import { getAllSales } from "./db";
+import { computeCustomerAccounts } from "./accountingEngine";
+
+/*
+  BUSINESS HEALTH INDEX — ADVANCED RETAIL MODEL
+
+  Measures:
+  - how much money is stuck outside
+  - how dependent shop is on credit
+  - real liquidity danger
+*/
 
 export async function calculateMerchantHealthIndex() {
   const sales = await getAllSales();
-  if (sales.length === 0) {
-    return { score: 0, label: "No Data" };
+  const accounts = await computeCustomerAccounts();
+
+  /* ============================
+     1. REAL REVENUE (GOODS SOLD)
+  ============================ */
+  const totalGoodsSold = sales
+    .filter(s => s.accountType === "ITEM_SALE")
+    .reduce((sum, s) => sum + (s.amount || 0), 0);
+
+  if (totalGoodsSold === 0) {
+    return {
+      score: 100,
+      label: "No Activity",
+      ratio: 0,
+      exposure: 0,
+      advice: "Start recording sales"
+    };
   }
 
-  const today = new Date().toLocaleDateString();
-  const todaySales = sales.filter(s => s.date === today);
+  /* ============================
+     2. TOTAL EXPOSURE
+  ============================ */
+  let totalExposure = 0;
+  let totalAdvance = 0;
+  let totalLoan = 0;
+  let totalCredit = 0;
 
-  /* =====================
-     1️⃣ SALES STRENGTH (30)
-  ===================== */
-  const totalSales = todaySales.reduce((sum, s) => sum + s.amount, 0);
-  let salesScore = 0;
-  if (totalSales >= 2000) salesScore = 30;
-  else if (totalSales >= 1000) salesScore = 20;
-  else if (totalSales >= 500) salesScore = 10;
+  for (const name in accounts) {
+    const acc = accounts[name];
 
-  /* =====================
-     2️⃣ CREDIT RISK (25)
-  ===================== */
-  const creditSales = todaySales.filter(s => s.paymentMethod === "credit");
-  const creditAmount = creditSales.reduce((sum, s) => sum + s.amount, 0);
-  const creditPercent = totalSales ? (creditAmount / totalSales) * 100 : 0;
+    totalCredit += acc.goodsDue;
+    totalAdvance += acc.advance;
+    totalLoan += acc.loan;
 
-  let creditScore = 25;
-  if (creditPercent > 50) creditScore = 5;
-  else if (creditPercent > 30) creditScore = 10;
-  else if (creditPercent > 10) creditScore = 18;
+    const exposure = acc.goodsDue + acc.loan - acc.advance;
 
-  /* =====================
-     3️⃣ PROFIT QUALITY (20)
-  ===================== */
-  const profitToday = todaySales.reduce(
-    (sum, s) => sum + (s.estimatedProfit || 0),
-    0
-  );
+    if (exposure > 0) totalExposure += exposure;
+  }
 
-  let profitScore = 0;
-  if (profitToday >= 500) profitScore = 20;
-  else if (profitToday >= 200) profitScore = 15;
-  else if (profitToday >= 50) profitScore = 8;
+  /* ============================
+     3. RISK RATIO
+  ============================ */
+  const riskRatio = totalExposure / totalGoodsSold;
+  const score = Math.max(0, Math.min(100, Math.round(100 - riskRatio * 100)));
 
-  /* =====================
-     4️⃣ CONSISTENCY (15)
-  ===================== */
-  const uniqueDays = new Set(sales.map(s => s.date)).size;
-  let consistencyScore = uniqueDays >= 7 ? 15 : uniqueDays >= 4 ? 10 : 5;
+  /* ============================
+     4. BUSINESS STATE
+  ============================ */
+  let label, advice;
 
-  /* =====================
-     5️⃣ CASH FLOW MIX (10)
-  ===================== */
-  const instantPayments = todaySales.filter(
-    s => s.paymentMethod !== "credit"
-  ).length;
+  if (riskRatio === 0) {
+    label = "Cash Positive";
+    advice = "All payments recovered. Business very healthy.";
+  }
+  else if (riskRatio < 0.10) {
+    label = "Healthy Flow";
+    advice = "Credit under control.";
+  }
+  else if (riskRatio < 0.25) {
+    label = "Controlled Credit";
+    advice = "Monitor customers regularly.";
+  }
+  else if (riskRatio < 0.40) {
+    label = "Credit Heavy";
+    advice = "Reduce udhar sales.";
+  }
+  else if (riskRatio < 0.60) {
+    label = "Liquidity Risk";
+    advice = "Cash shortage possible soon.";
+  }
+  else if (riskRatio < 0.80) {
+    label = "High Risk";
+    advice = "Stop giving credit immediately.";
+  }
+  else {
+    label = "Critical Exposure";
+    advice = "Business in danger — recover dues urgently.";
+  }
 
-  let cashFlowScore =
-    instantPayments >= creditSales.length ? 10 : 5;
+  /* ============================
+     FINAL OUTPUT
+  ============================ */
+  return {
+    score,
+    label,
+    advice,
 
-  /* =====================
-     FINAL SCORE
-  ===================== */
-  const score =
-    salesScore +
-    creditScore +
-    profitScore +
-    consistencyScore +
-    cashFlowScore;
-
-  let label = "Critical";
-  if (score >= 80) label = "Healthy";
-  else if (score >= 60) label = "Stable";
-  else if (score >= 40) label = "At Risk";
-
-  return { score, label };
+    metrics: {
+      totalGoodsSold,
+      totalExposure,
+      totalCredit,
+      totalAdvance,
+      totalLoan,
+      riskRatio: Number((riskRatio * 100).toFixed(2))
+    }
+  };
 }

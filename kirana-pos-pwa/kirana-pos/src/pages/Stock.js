@@ -102,6 +102,28 @@ export async function renderStock(container) {
         confirmText: "Add",
         onConfirm: async qty => {
           await updateStockQuantity(item.id, item.quantity + qty);
+          //record purchase entry (inventory investment)
+          const { saveSale } = await import("../services/db");
+          const { ACCOUNT_TYPE, MONEY_DIRECTION } = await import("../services/transactionTypes");
+
+          await saveSale({
+            id: crypto.randomUUID(),
+            amount: qty * (item.costPrice || 0),
+            items: [],
+            paymentMethod: "stock",
+            referenceSource: "inventory-purchase",
+            accountType: ACCOUNT_TYPE.STOCK_PURCHASE,
+            moneyDirection: MONEY_DIRECTION.OUT,
+            stockEffect: "IN",
+            liabilityEffect: "NONE",
+            customerName: null,
+            transactionType: "purchase",
+            date: new Date().toLocaleDateString(),
+            timestamp: Date.now(),
+            estimatedProfit: 0
+          });
+
+
           await renderStock(container);
           showToast("Stock updated", "success");
         }

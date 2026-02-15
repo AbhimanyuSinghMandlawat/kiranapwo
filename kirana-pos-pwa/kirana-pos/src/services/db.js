@@ -266,27 +266,50 @@ export async function processSale(sale) {
     const salesStore = tx.objectStore(SALES_STORE);
 
     try {
+      let totalCost = 0;
+      let totalRevenue = 0;
+      let pendingReads = sale.items.length;
+      let aborted = false;
 
       // ===== UPDATE STOCK =====
       sale.items.forEach(i => {
         const req = stockStore.get(i.itemId);
 
         req.onsuccess = () => {
+          if(aborted) return;
           const s = req.result;
 
           if (!s || s.quantity < i.qty) {
+            aborted = true;
             tx.abort();
             reject("Insufficient stock");
             return;
           }
+          //======Profit calculation =========//
+          const itemCost = (s.costPrice || 0) * i.qty;
+          const itemRevenue = (s.price || 0) * i.qty;
+          totalCost += itemCost;
+          totalRevenue += itemRevenue;
+          //reduce stock
 
           s.quantity -= i.qty;
           stockStore.put(s);
+
+          pendingReads--;
+          //wait until all items processed
+          if (pendingReads === 0 && !aborted) {
+            sale.estimatedProfit = totalRevenue - totalCost;
+            salesStore.put(sale);
+          }
+        };
+        req.onerror = () => {
+          aborted = true;
+          tx.abort();
+          reject("Stock read error");
         };
       });
-
-      // ===== SAVE SALE =====
-      salesStore.put(sale);
+      //==========Finalize profit=====//
+      sale.estimatedProfit = totalRevenue - totalCost;
 
       // ===== AFTER SUCCESSFUL COMMIT → LOG AUDIT =====
       tx.oncomplete = async () => {
