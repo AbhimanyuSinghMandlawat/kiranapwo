@@ -1,0 +1,15 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: Inter, Roboto, system-ui, sans-serif;
+}
+
+body {
+  background: var(--bg-main);
+  color: var(--text-primary);
+}
+
+#app {
+  min-height: 100vh;
+}

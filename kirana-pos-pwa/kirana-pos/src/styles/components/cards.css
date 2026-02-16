@@ -1,0 +1,38 @@
+.card {
+  background: var(--card-bg);
+  backdrop-filter: var(--blur);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius);
+  padding: 22px;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+}
+
+.card p {
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.card h2 {
+  margin-top: 12px;
+  font-size: 32px;
+  font-weight: 600;
+  background: linear-gradient(90deg, var(--primary), var(--secondary));
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+.card ul {
+  margin-top: 10px;
+  padding-left: 16px;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+.card li {
+  margin-bottom: 6px;
+}
