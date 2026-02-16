@@ -12,11 +12,11 @@ export async function renderDashboard(container) {
   console.group("=== DASHBOARD ACCOUNTING AUDIT ===");
 
   console.table(sales.map(s => ({
-   customer: s.customerName,
-   type: s.accountType,
-   payment: s.paymentMethod,
-   amount: s.amount,
-   date: s.date
+   customer: s.customerName || "_",
+   type: s.accountType || "_",
+   payment: s.paymentMethod || "_",
+   amount: s.amount ?? 0,
+   date: s.date || "_"
   })));
 
   const itemSalesDebug = sales.filter(s => s.accountType === "ITEM_SALE");

@@ -104,7 +104,7 @@ export async function saveSale(sale) {
 
     tx.oncomplete = async () => {
 
-      let actionType = "SALE";
+      let actionType = sale.accountType;
       if (sale.paymentMethod === "credit") actionType = "CREDIT_GIVEN";
       if (sale.transactionType === "settlement") actionType = "SETTLEMENT";
       const actor = await getCurrentUser();

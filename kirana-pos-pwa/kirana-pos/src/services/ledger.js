@@ -1,30 +1,46 @@
 // src/services/ledger.js
 import { getAllSales } from "./db";
+import { LIABILITY_EFFECT } from "./transactionTypes";
 
 export async function getCreditLedger() {
   const sales = await getAllSales();
   const ledger = {};
 
-  sales.forEach(sale => {
-    if (!sale.customerName) return;
+  for (const tx of sales) {
+    if (!tx.customerName) continue;
 
-    const key = sale.customerName.trim().toLowerCase();
+    const key = tx.customerName.trim().toLowerCase();
 
     if (!ledger[key]) {
       ledger[key] = {
-        customerName: sale.customerName,
+        customerName: tx.customerName,
         balance: 0
       };
     }
 
-    if (sale.transactionType === "sale" && sale.paymentMethod === "credit") {
-      ledger[key].balance += sale.amount;
-    }
+    switch (tx.liabilityEffect) {
 
-    if (sale.transactionType === "settlement") {
-      ledger[key].balance -= sale.amount;
+      case LIABILITY_EFFECT.INCREASE_GOODS_DUE:
+        ledger[key].balance += tx.amount;
+        break;
+
+      case LIABILITY_EFFECT.DECREASE_GOODS_DUE:
+        ledger[key].balance -= tx.amount;
+        break;
+
+      case LIABILITY_EFFECT.INCREASE_LOAN:
+        ledger[key].balance += tx.amount;
+        break;
+
+      case LIABILITY_EFFECT.DECREASE_LOAN:
+        ledger[key].balance -= tx.amount;
+        break;
+
+      case LIABILITY_EFFECT.INCREASE_ADVANCE:
+        ledger[key].balance -= tx.amount; // advance reduces payable
+        break;
     }
-  });
+  }
 
   return Object.values(ledger).filter(l => l.balance > 0);
 }

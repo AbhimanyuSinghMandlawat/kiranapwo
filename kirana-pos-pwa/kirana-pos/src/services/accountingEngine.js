@@ -7,10 +7,19 @@ import { LIABILITY_EFFECT } from "./transactionTypes";
 
 export async function computeCustomerAccounts() {
   const sales = await getAllSales();
+
+  sales.sort((a, b) => (a.timestamp || 0) - (b.timestamp || 0)); // old to new
   const accounts = {};
 
   for (const tx of sales) {
+
+    // Ignore non-customer transactions
     if (!tx.customerName) continue;
+
+    // 🔴 Ignore broken financial rows (VERY IMPORTANT)
+    if (!tx.liabilityEffect) continue;
+    if (typeof tx.amount !== "number") continue;
+    if (tx.amount <= 0) continue;
 
     const name = tx.customerName.toLowerCase();
 
@@ -32,7 +41,6 @@ export async function computeCustomerAccounts() {
 
       case LIABILITY_EFFECT.DECREASE_GOODS_DUE:
         acc.goodsDue -= tx.amount;
-        if (acc.goodsDue < 0) acc.goodsDue = 0;
         break;
 
       case LIABILITY_EFFECT.INCREASE_ADVANCE:
@@ -41,7 +49,6 @@ export async function computeCustomerAccounts() {
 
       case LIABILITY_EFFECT.DECREASE_ADVANCE:
         acc.advance -= tx.amount;
-        if (acc.advance < 0) acc.advance = 0;
         break;
 
       case LIABILITY_EFFECT.INCREASE_LOAN:
@@ -52,6 +59,11 @@ export async function computeCustomerAccounts() {
         acc.loan -= tx.amount;
         break;
     }
+
+    // 🧠 Financial clamps (prevents negative corruption)
+    if (acc.goodsDue < 0) acc.goodsDue = 0;
+    if (acc.advance < 0) acc.advance = 0;
+    if (acc.loan < 0) acc.loan = 0;
   }
 
   return accounts;
