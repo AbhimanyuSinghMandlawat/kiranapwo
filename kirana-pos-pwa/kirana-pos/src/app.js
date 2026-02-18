@@ -121,8 +121,14 @@ export async function navigate(rawPage) {
 
   attachNavEvents();
 
+  const { attachLayoutEvents } = await import("./components/Layout.js");
+  attachLayoutEvents();
+
   /* IMPORTANT: mark app stable AFTER first render */
   APP_BOOTED = true;
+
+  
+
 }
 
 
@@ -167,3 +173,12 @@ window.onload = async () => {
   // first route selection only
   location.hash = done ? "dashboard" : "opening-stock";
 };
+
+/* =========================================
+   GLOBAL LANGUAGE RERENDER
+ ========================================= */
+
+ window.addEventListener("languageChanged", () => {
+   const currentHash = location.hash.slice(1) || "dashboard";
+   navigate(currentHash);
+  });

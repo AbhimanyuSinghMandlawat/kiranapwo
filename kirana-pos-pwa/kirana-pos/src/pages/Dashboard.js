@@ -6,6 +6,8 @@ import { getTodayProfit } from "../services/profit";
 import { generateSmartInsights } from "../services/insights";
 import { getDailySummary } from "../services/dailySummary";
 import { renderDailySummary } from "../components/DailySummaryModal";
+import { t } from "../i18n/i18n";
+
 
 export async function renderDashboard(container) {
   const sales = await getAllSales();
@@ -63,7 +65,7 @@ export async function renderDashboard(container) {
 
   const content = `
     <section class="dashboard">
-      <h1>Dashboard</h1>
+      <h1>${t("Dashboard")}</h1>
 
       <button id="view-summary" class="btn-secondary">
         📊 View Today's Summary

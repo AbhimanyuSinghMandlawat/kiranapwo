@@ -2,116 +2,78 @@
 
 import { renderLayout } from "../components/Layout";
 import { getCustomerProfiles } from "../services/customerProfile";
-import { getCreditTrustScores } from "../services/creditScore";
-
-/* ===============================
-   UI HELPERS
-=============================== */
-function loyaltyClass(level) {
-  return level.toLowerCase();
-}
-
-function creditInfo(credit) {
-  if (!credit || credit.creditScore === null) {
-    return {
-      score: "--",
-      label: "No Credit History",
-      className: "none"
-    };
-  }
-
-  if (credit.creditScore >= 80) {
-    return {
-      score: credit.creditScore,
-      label: "Trusted Borrower",
-      className: "good"
-    };
-  }
-
-  if (credit.creditScore >= 50) {
-    return {
-      score: credit.creditScore,
-      label: "Average Credit",
-      className: "avg"
-    };
-  }
-
-  return {
-    score: credit.creditScore,
-    label: "Risky Credit",
-    className: "bad"
-  };
-}
 
 /* ===============================
    RENDER PAGE
 =============================== */
 export async function renderCreditScore(container) {
+
+  // IMPORTANT: returns ARRAY (fixed)
   const profiles = await getCustomerProfiles();
-  const creditData = await getCreditTrustScores();
 
   container.innerHTML = await renderLayout(`
     <section class="credit-page">
       <header class="credit-header">
-        <h1>Customer Loyalty & Credit</h1>
-        <p>Make better decisions using real customer behavior</p>
+        <h1>Customer Intelligence</h1>
+        <p>Know who is safe to give credit</p>
       </header>
 
       <div class="customer-grid">
         ${
           profiles.length === 0
             ? `<p class="muted">No customer data available</p>`
-            : profiles
-                .map(profile => {
-                  const credit = creditData.find(
-                    c =>
-                      c.customerName.toLowerCase() ===
-                      profile.customerName.toLowerCase()
-                  );
+            : profiles.map(profile => {
 
-                  const c = creditInfo(credit);
-                  const avgSpend = Math.round(
-                    profile.totalSpent / profile.totalVisits
-                  );
+              const m = profile.metrics;
+              const b = profile.behaviour;
+              const d = profile.decision;
 
-                  return `
-                    <article class="customer-card">
-                      <div class="customer-top">
-                        <h3>${profile.customerName}</h3>
-                        <div class="credit-score ${c.className}">
-                          ${c.score}
-                        </div>
-                      </div>
+              return `
+                <article class="customer-card risk-${d.riskLevel}">
+                  
+                  <div class="customer-top">
+                    <h3>${profile.customer}</h3>
+                    <div class="risk-badge">
+                      ${d.riskLevel.replace("_"," ")}
+                    </div>
+                  </div>
 
-                      <div class="customer-tags">
-                        <span class="loyalty-badge ${loyaltyClass(
-                          profile.loyaltyLevel
-                        )}">
-                          ${profile.loyaltyLevel}
-                        </span>
-                        <span class="credit-label">
-                          ${c.label}
-                        </span>
-                      </div>
+                  <div class="advice">
+                    ${d.advice}
+                  </div>
 
-                      <div class="customer-stats">
-                        <div>
-                          <small>Visits</small>
-                          <strong>${profile.totalVisits}</strong>
-                        </div>
-                        <div>
-                          <small>Avg Spend</small>
-                          <strong>₹${avgSpend}</strong>
-                        </div>
-                        <div>
-                          <small>Total Spent</small>
-                          <strong>₹${profile.totalSpent}</strong>
-                        </div>
-                      </div>
-                    </article>
-                  `;
-                })
-                .join("")
+                  <div class="customer-stats">
+                    <div>
+                      <small>Visits</small>
+                      <strong>${m.visitFrequency}</strong>
+                    </div>
+                    <div>
+                      <small>Lifetime Value</small>
+                      <strong>₹${Math.round(m.lifetimeValue)}</strong>
+                    </div>
+                    <div>
+                      <small>Repayment Speed</small>
+                      <strong>${Math.round(m.avgRepaymentDays)} days</strong>
+                    </div>
+                    <div>
+                      <small>Credit Usage</small>
+                      <strong>${Math.round(m.creditUsageRatio*100)}%</strong>
+                    </div>
+                  </div>
+
+                  <div class="behaviour">
+                    <span class="tag">${b.loyalty}</span>
+                    <span class="tag">${b.paymentHabit}</span>
+                    <span class="tag">${b.dependency}</span>
+                  </div>
+
+                  <div class="limit">
+                    Max Safe Credit: ₹${d.maxAllowedCredit}
+                  </div>
+
+                </article>
+              `;
+            }).join("")
         }
       </div>
     </section>

@@ -1,15 +1,14 @@
 import { getCurrentUser } from "../auth/authService";
+import { t } from "../i18n/i18n";
 
 export async function renderLayout(contentHtml) {
   const user = await getCurrentUser();
   const role = user?.role;
 
-  // ===== ROLE BASED MENU VISIBILITY =====
   const isOwner = role === "owner";
   const isManager = role === "manager";
   const isCashier = role === "cashier";
 
-  // Determine current network state safely
   const online = navigator.onLine;
 
   const syncText = online
@@ -19,56 +18,59 @@ export async function renderLayout(contentHtml) {
   return `
     <div class="app-layout">
 
-      <!-- Sidebar (Desktop) -->
       <aside class="sidebar">
         <h2 class="logo">Kirana POS</h2>
 
         <nav>
-          <a href="#" data-page="dashboard">Dashboard</a>
-          <a href="#" data-page="add-sale">Add Sale</a>
+          <div class="lang-switch">
+            <button data-lang="en">EN</button>
+            <button data-lang="hi">हिं</button>
+            <button data-lang="hing">HING</button>
+          </div>
 
-          ${!isCashier ? `<a href="#" data-page="stock">Stock</a>` : ""}
-          ${!isCashier ? `<a href="#" data-page="reports">Reports</a>` : ""}
-          ${!isCashier ? `<a href="#" data-page="credit">Credit Score</a>` : ""}
-          ${!isCashier ? `<a href="#" data-page="ledger">Credit Ledger</a>` : ""}
+          <a href="#" data-page="dashboard">${t("sidebar.dashboard")}</a>
+          <a href="#" data-page="add-sale">${t("sidebar.addSale")}</a>
 
-          ${isOwner ? `<a href="#" data-page="manage-staff">Manage Staff</a>` : ""}
+          ${!isCashier ? `<a href="#" data-page="stock">${t("sidebar.stock")}</a>` : ""}
+          ${!isCashier ? `<a href="#" data-page="reports">${t("sidebar.reports")}</a>` : ""}
+          ${!isCashier ? `<a href="#" data-page="credit">${t("sidebar.creditScore")}</a>` : ""}
+          ${!isCashier ? `<a href="#" data-page="ledger">${t("sidebar.creditLedger")}</a>` : ""}
 
-          <a href="#" data-page="logout">Logout</a>
+          ${isOwner ? `<a href="#" data-page="manage-staff">${t("sidebar.manageStaff")}</a>` : ""}
+
+          <a href="#" data-page="logout">${t("sidebar.logout")}</a>
         </nav>
       </aside>
 
-      <!-- Main Content -->
       <main class="main-content page-enter">
-
-        <!-- Network / Sync Status -->
         <div class="network-status" id="network-status"></div>
-
-        <div class="sync-status" id="sync-status">
-          ${syncText}
-        </div>
-
-        <!-- Global Toast Container -->
+        <div class="sync-status" id="sync-status">${syncText}</div>
         <div id="toast-container"></div>
-
         ${contentHtml}
       </main>
 
-      <!-- Bottom Navigation (Mobile) -->
       <nav class="bottom-nav">
-        <button data-page="dashboard">Home</button>
-        <button data-page="add-sale">Sale</button>
+        <button data-page="dashboard">${t("sidebar.dashboard")}</button>
+        <button data-page="add-sale">${t("sidebar.addSale")}</button>
 
-        ${!isCashier ? `<button data-page="stock">Stock</button>` : ""}
-        ${!isCashier ? `<button data-page="reports">Reports</button>` : ""}
-        ${!isCashier ? `<button data-page="credit">Credit</button>` : ""}
-        ${!isCashier ? `<button data-page="ledger">Ledger</button>` : ""}
+        ${!isCashier ? `<a href="#" data-page="stock">${t("sidebar.stock")}</a>` : ""}
+        ${!isCashier ? `<a href="#" data-page="reports">${t("sidebar.reports")}</a>` : ""}
+        ${!isCashier ? `<a href="#" data-page="credit">${t("sidebar.creditScore")}</a>` : ""}
+        ${!isCashier ? `<a href="#" data-page="ledger">${t("sidebar.creditLedger")}</a>` : ""}
 
-        ${isOwner ? `<button data-page="manage-staff">Staff</button>` : ""}
+        ${isOwner ? `<a href="#" data-page="manage-staff">${t("sidebar.manageStaff")}</a>` : ""}
 
-        <button data-page="logout">Logout</button>
+        <a href="#" data-page="logout">${t("sidebar.logout")}</a>
       </nav>
 
     </div>
   `;
 }
+export function attachLayoutEvents() {
+  import("../i18n/i18n.js").then(({ setLanguage }) => {
+    document.querySelectorAll(".lang-switch button").forEach(btn => {
+      btn.onclick = () => setLanguage(btn.dataset.lang);
+    });
+  });
+}
+

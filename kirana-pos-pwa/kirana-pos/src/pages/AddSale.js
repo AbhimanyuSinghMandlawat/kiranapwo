@@ -4,6 +4,8 @@ import { navigate } from "../app";
 import { showToast } from "../utils/toast";
 import { searchStock } from "../utils/helpers";
 import { buildFinancialEvent } from "../services/financialEvent";
+import { evaluateCreditDecision } from "../services/creditAdvisor";
+import { t } from "../i18n/i18n";
 
 import {
   ACCOUNT_TYPE,
@@ -20,7 +22,7 @@ function addToCart(stockItem, qty = 1) {
   const existing = cartItems.find(i => i.itemId === stockItem.id);
   if (existing) {
     if (existing.qty + qty > stockItem.quantity) {
-      showToast("Not enough stock", "error");
+      showToast(t("addSale.notEnoughStock"), "error");
       return;
     }
     existing.qty += qty;
@@ -53,17 +55,17 @@ export async function renderAddSale(container) {
   container.innerHTML = await renderLayout(`
     <section class="add-sale">
       <div class="glass-card">
-        <h1>Add Transaction</h1>
+        <h1>${t("addSale.title")}</h1>
 
         <div class="mode-switch">
-          <button id="mode-amount" class="btn-option active">Quick Sale</button>
-          <button id="mode-items" class="btn-option">Item Sale</button>
+          <button id="mode-amount" class="btn-option active">${t("addSale.quickSale")}</button>
+          <button id="mode-items" class="btn-option">${t("addSale.itemSale")}</button>
         </div>
 
         <form id="sale-form">
           <div id="amount-section">
-            <label>Amount (₹)</label>
-            <input id="amount" type="number" placeholder="Enter amount" />
+            <label>${t("addSale.amount")} (₹)</label>
+            <input id="amount" type="number" placeholder="${t("addSale.enterAmount")}" />
           </div>
 
           <div id="item-sale-section" style="display:none">
@@ -81,16 +83,18 @@ export async function renderAddSale(container) {
 
           <label>Payment Method</label>
           <div class="payment-options">
-            <button type="button" class="btn-option" data-method="cash">Cash</button>
-            <button type="button" class="btn-option" data-method="upi">UPI</button>
-            <button type="button" class="btn-option" data-method="card">Card</button>
-            <button type="button" class="btn-option" data-method="credit">Credit</button>
+            <button type="button" class="btn-option" data-method="cash">${t("addSale.cash")}</button>
+            <button type="button" class="btn-option" data-method="upi">${t("addSale.upi")}</button>
+            <button type="button" class="btn-option" data-method="card">${t("addSale.card")}</button>
+            <button type="button" class="btn-option" data-method="credit">${t("addSale.credit")}</button>
           </div>
 
           <label>Customer Name</label>
-          <input id="customer" type="text" placeholder="Enter customer name" />
+          <input id="customer" type="text" placeholder="${t("addSale.enterCustomer")}" />
+          <div id="credit-advice" class="credit-advice hidden"></div>
 
-          <button class="btn-primary full-width" type="submit">Save</button>
+
+          <button class="btn-primary full-width" type="submit">${t("addSale.save")}</button>
         </form>
       </div>
     </section>
@@ -130,11 +134,21 @@ export async function renderAddSale(container) {
         .forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
       selectedPayment = btn.dataset.method;
+      runCreditAdvisor();
     };
   });
 
   const cartDiv = document.getElementById("cart-list");
   const cartTotal = document.getElementById("cart-total");
+  const adviceBox = document.getElementById("credit-advice");
+  const customerInput = document.getElementById("customer");
+  const amountInput = document.getElementById("amount");
+
+  amountInput?.addEventListener("input", runCreditAdvisor);
+  customerInput.addEventListener("input", runCreditAdvisor);
+
+
+
 
   function renderCart() {
     cartDiv.innerHTML =
@@ -169,7 +183,46 @@ export async function renderAddSale(container) {
         renderCart();
       };
     });
+    runCreditAdvisor();
   }
+  async function runCreditAdvisor() {
+
+    if (selectedPayment !== "credit") {
+      adviceBox.className = "credit-advice hidden";
+      adviceBox.innerHTML = "";
+      return;
+    }
+
+    const customerName = customerInput.value.trim();
+    if (!customerName) {
+      adviceBox.className = "credit-advice hidden";
+      return;
+    }
+
+    const amount =
+      saleMode === "items"
+        ? calculateTotal()
+        : Number(amountInput.value || 0);
+
+    if (!amount || amount <= 0) {
+      adviceBox.className = "credit-advice hidden";
+      return;
+    }
+
+    const result = await evaluateCreditDecision(customerName, amount);
+
+    if (!result) return;
+
+    adviceBox.className = `credit-advice ${result.level}`;
+
+    adviceBox.innerHTML = `
+      <strong>${result.message}</strong><br>
+      ${t("creditAdvisor.outstanding")}: ₹${result.currentOutstanding} → ₹${result.afterTransaction}<br>
+      ${t("creditAdvisor.limit")}: ₹${result.safeLimit}<br>
+      <small>${result.behaviourNote}</small>
+    `;
+  }
+
 
   const searchInput = document.getElementById("stock-search");
   const resultsDiv = document.getElementById("search-results");
@@ -208,7 +261,7 @@ export async function renderAddSale(container) {
     e.preventDefault();
 
     if (!selectedPayment) {
-      showToast("Select payment method", "error");
+      showToast(t("addSale.selectPayment"), "error");
       return;
     }
 
@@ -222,7 +275,7 @@ export async function renderAddSale(container) {
         : Number(document.getElementById("amount").value || 0);
 
     if (!amount || amount <= 0) {
-      showToast("Invalid amount", "error");
+      showToast(t("addSale.invalidAmount"), "error");
       return;
     }
 
@@ -230,7 +283,7 @@ export async function renderAddSale(container) {
       document.getElementById("customer").value.trim() || null;
 
     if (isSettlement && !customerName) {
-      showToast("Customer required for settlement", "error");
+      showToast(t("addSale.customerRequired"), "error");
       return;
     }
 

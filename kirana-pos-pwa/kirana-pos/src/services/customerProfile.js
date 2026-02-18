@@ -1,78 +1,181 @@
-// src/services/customerProfile.js
-
 import { getAllSales } from "./db";
+import { LIABILITY_EFFECT } from "./transactionTypes";
 
-/* ===============================
-   CUSTOMER PROFILE BUILDER
-=============================== */
-export async function getCustomerProfiles() {
+/*
+Customer Intelligence Engine
+Transforms raw financial history → shopkeeper decisions
+*/
+
+/* =========================================================
+STEP 1 — BUILD ALL PROFILES (CORE ENGINE)
+========================================================= */
+
+export async function buildCustomerProfiles() {
+
   const sales = await getAllSales();
-  const map = {};
+  const customers = {};
 
-  sales.forEach(sale => {
-    if (!sale.customerName) return;
+  // GROUP TRANSACTIONS
+  for (const tx of sales) {
+    if (!tx.customerName) continue;
 
-    const name = sale.customerName.trim();
-    const date = sale.timestamp || Date.now();
+    const name = tx.customerName.toLowerCase();
 
-    if (!map[name]) {
-      map[name] = {
-        customerName: name,
-        totalVisits: 0,
-        totalSpent: 0,
-        firstVisit: date,
-        lastVisit: date
-      };
+    if (!customers[name]) {
+      customers[name] = [];
     }
 
-    map[name].totalVisits += 1;
-    map[name].totalSpent += sale.amount;
-    map[name].firstVisit = Math.min(map[name].firstVisit, date);
-    map[name].lastVisit = Math.max(map[name].lastVisit, date);
-  });
+    customers[name].push(tx);
+  }
 
-  return Object.values(map).map(profile => ({
-    ...profile,
-    loyaltyLevel: classifyLoyalty(profile)
+  // ANALYZE EACH CUSTOMER
+  const profiles = {};
+
+  for (const name in customers) {
+    profiles[name] = analyzeCustomer(customers[name]);
+  }
+
+  return profiles;
+}
+
+/* =========================================================
+STEP 2 — UI ADAPTER (CreditScore page uses this)
+========================================================= */
+
+export async function getCustomerProfiles() {
+  const map = await buildCustomerProfiles();
+
+  return Object.entries(map).map(([customer, data]) => ({
+    customer,
+    ...data
   }));
 }
 
-/* ===============================
-   LOYALTY CLASSIFICATION
-   (REAL-WORLD, MULTI-VARIABLE)
-=============================== */
-export function classifyLoyalty(profile) {
-  const now = Date.now();
-  const daysSinceLastVisit = Math.floor(
-    (now - profile.lastVisit) / (1000 * 60 * 60 * 24)
-  );
+/* =========================================================
+STEP 3 — ANALYZE SINGLE CUSTOMER
+========================================================= */
 
-  const avgSpend = profile.totalSpent / profile.totalVisits;
+function analyzeCustomer(transactions) {
 
-  // 🟡 New customer
-  if (profile.totalVisits === 1) {
-    return "New";
+  transactions.sort((a,b)=>a.timestamp-b.timestamp);
+
+  let goodsDue = 0;
+  let lifetimeValue = 0;
+  let creditPurchases = 0;
+  let totalPurchases = 0;
+
+  let visitDays = new Set();
+
+  let cycleStart = null;
+  let cycles = [];
+  let lateCycles = 0;
+
+  for (const tx of transactions) {
+
+    visitDays.add(new Date(tx.timestamp).toDateString());
+
+    switch(tx.liabilityEffect) {
+
+      case LIABILITY_EFFECT.INCREASE_GOODS_DUE:
+        goodsDue += tx.amount;
+        lifetimeValue += tx.amount;
+        totalPurchases++;
+        creditPurchases++;
+
+        if (cycleStart === null)
+          cycleStart = tx.timestamp;
+        break;
+
+      case LIABILITY_EFFECT.DECREASE_GOODS_DUE:
+        goodsDue -= tx.amount;
+
+        if (goodsDue <= 0 && cycleStart !== null) {
+          const days = (tx.timestamp - cycleStart)/(1000*60*60*24);
+          cycles.push(days);
+          if (days > 7) lateCycles++;
+          cycleStart = null;
+          goodsDue = 0;
+        }
+        break;
+    }
   }
 
-  // 🟠 Occasional (visited but not consistent)
-  if (profile.totalVisits >= 2 && daysSinceLastVisit > 30) {
-    return "Occasional";
+  const avgRepaymentDays =
+    cycles.length === 0 ? 0 :
+    cycles.reduce((a,b)=>a+b,0)/cycles.length;
+
+  const visitFrequency = visitDays.size;
+
+  const creditUsageRatio =
+    totalPurchases === 0 ? 0 : creditPurchases/totalPurchases;
+
+  const outstandingRatio =
+    lifetimeValue === 0 ? 0 : goodsDue/lifetimeValue;
+
+  let paymentHabit =
+    avgRepaymentDays <= 2 ? "fast" :
+    avgRepaymentDays <= 7 ? "normal" :
+    avgRepaymentDays <= 21 ? "slow" :
+    "never";
+
+  let loyalty =
+    visitFrequency >= 20 ? "regular" :
+    visitFrequency >= 7 ? "occasional" :
+    "rare";
+
+  let dependency =
+    creditUsageRatio > 0.7 ? "credit-heavy" :
+    creditUsageRatio > 0.3 ? "mixed" :
+    "cash";
+
+  let riskLevel = "safe";
+  let maxAllowedCredit = 500;
+  let advice = "Normal credit allowed";
+
+  if (lateCycles >= 4 || paymentHabit === "never") {
+    riskLevel = "blocked";
+    maxAllowedCredit = 0;
+    advice = "Do NOT give credit — high default risk";
+  }
+  else if (lateCycles >= 2) {
+    riskLevel = "dangerous";
+    maxAllowedCredit = 100;
+    advice = "Avoid giving credit";
+  }
+  else if (paymentHabit === "slow") {
+    riskLevel = "risky";
+    maxAllowedCredit = 200;
+    advice = "Give only small credit";
+  }
+  else if (paymentHabit === "normal") {
+    riskLevel = "caution";
+    maxAllowedCredit = 300;
+    advice = "Credit ok but monitor";
+  }
+  else if (paymentHabit === "fast" && loyalty === "regular") {
+    riskLevel = "very_safe";
+    maxAllowedCredit = 1500;
+    advice = "Very reliable customer";
   }
 
-  // 🟢 Regular
-  if (profile.totalVisits >= 5 && avgSpend >= 100) {
-    return "Regular";
-  }
-
-  // 🔵 Loyal
-  if (profile.totalVisits >= 10 && daysSinceLastVisit <= 30) {
-    return "Loyal";
-  }
-
-  // 🟣 VIP
-  if (profile.totalVisits >= 20 && profile.totalSpent >= 5000) {
-    return "VIP";
-  }
-
-  return "Occasional";
+  return {
+    metrics:{
+      lifetimeValue,
+      visitFrequency,
+      avgRepaymentDays,
+      outstandingRatio,
+      creditUsageRatio,
+      lateCycles
+    },
+    behaviour:{
+      loyalty,
+      paymentHabit,
+      dependency
+    },
+    decision:{
+      riskLevel,
+      maxAllowedCredit,
+      advice
+    }
+  };
 }
