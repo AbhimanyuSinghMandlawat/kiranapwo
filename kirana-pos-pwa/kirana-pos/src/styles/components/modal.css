@@ -72,4 +72,22 @@
   margin: 8px 0;
   font-size: 14px;
 }
+.modal-backdrop{
+  position:fixed;
+  inset:0;
+  background:rgba(2,6,23,.65);
+  backdrop-filter:blur(6px);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:999;
+}
 
+.modal{
+  background:rgba(30,41,59,.92);
+  border:1px solid rgba(255,255,255,.08);
+  border-radius:18px;
+  padding:22px;
+  min-width:320px;
+  box-shadow:0 25px 70px rgba(0,0,0,.55);
+}

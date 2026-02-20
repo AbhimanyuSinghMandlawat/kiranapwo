@@ -66,10 +66,13 @@ export async function renderDashboard(container) {
   const content = `
     <section class="dashboard">
       <h1>${t("Dashboard")}</h1>
+      
 
-      <button id="view-summary" class="btn-secondary">
-        📊 View Today's Summary
-      </button>
+      <div class="dashboard-actions">
+        <button id="view-summary" class="btn-secondary">
+          📊 View Today's Summary
+        </button>
+      </div>
 
       <div class="cards">
         <div class="card">
