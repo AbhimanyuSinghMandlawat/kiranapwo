@@ -1,0 +1,27 @@
+:root {
+
+  /* BRAND COLORS (single source of truth) */
+  --accent-primary: linear-gradient(135deg,#22c55e,#16a34a);
+  --accent-primary-solid: #22c55e;
+  --accent-primary-hover: #16a34a;
+
+  /* SURFACES */
+  --surface-1: #0f172a;
+  --surface-2: #111c30;
+  --surface-3: #0b1424;
+
+  /* TEXT */
+  --text-main: #e5e7eb;
+  --text-muted: #9ca3af;
+
+  /* BORDER */
+  --border-subtle: rgba(255,255,255,0.06);
+
+  /* INPUT */
+  --input-bg: #0b1424;
+  --input-focus: #22c55e;
+
+  
+
+}
+

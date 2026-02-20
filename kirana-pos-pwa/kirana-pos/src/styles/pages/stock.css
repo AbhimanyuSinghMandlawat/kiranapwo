@@ -1,0 +1,79 @@
+/* =====================================================
+   STOCK PAGE – UI / UX POLISH
+   ===================================================== */
+
+.dashboard .card h3 {
+  margin-bottom: 16px;
+}
+
+.dashboard .card input {
+  margin-bottom: 12px;
+}
+
+.dashboard .card button {
+  margin-top: 10px;
+  padding: 14px 28px;
+  font-weight: 500;
+}
+
+.ledger-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+}
+
+.ledger-row > div:first-child {
+  max-width: 40%;
+}
+
+.stock-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.stock-actions .btn-primary {
+  padding: 12px 26px;
+  min-width: 130px;
+}
+
+.stock-actions .btn-secondary,
+.stock-actions .btn-danger {
+  padding: 8px 16px;
+  font-size: 13px;
+}
+
+.dashboard .ledger-row + .ledger-row {
+  margin-top: 18px;
+}
+.stock-header h1 {
+  margin: 0;
+  font-size: 28px;
+}
+
+.stock-header p {
+  opacity: .7;
+  margin-bottom: 20px;
+}
+
+td input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: white;
+  padding: 10px;
+}
+
+td input:focus {
+  background: #020617;
+  box-shadow: inset 0 0 0 1px #22c55e;
+  border-radius: 6px;
+}
+
+.stock-footer {
+  margin-top: 18px;
+  display: flex;
+  justify-content: space-between;
+}

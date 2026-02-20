@@ -13,3 +13,41 @@
 .margin.loss {
   color: #ef4444;   /* loss red */
 }
+.opening-stock {
+  display: flex;
+  justify-content: center;
+  padding: 40px;
+}
+
+.stock-card {
+  width: 1100px;
+  background: #0f172a;
+  border-radius: 16px;
+  padding: 28px;
+  box-shadow: 0 10px 35px rgba(0,0,0,.35);
+}
+
+.table-wrapper {
+  overflow: auto;
+  border-radius: 10px;
+  background: #020617;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th {
+  text-align: left;
+  padding: 14px;
+  background: #020617;
+  font-weight: 600;
+  color: #94a3b8;
+  border-bottom: 1px solid #1e293b;
+}
+
+td {
+  padding: 8px;
+  border-bottom: 1px solid #1e293b;
+}

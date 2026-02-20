@@ -1,0 +1,68 @@
+/* =====================================================
+   DASHBOARD
+   ===================================================== */
+.dashboard h1 {
+  font-size: 28px;
+  margin-bottom: 24px;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 24px;
+}
+
+/* =====================================================
+   DASHBOARD CARDS – UI / UX POLISH
+   ===================================================== */
+
+.dashboard .cards {
+  gap: 28px;
+}
+
+.dashboard .card {
+  position: relative;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+}
+
+.dashboard .card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+}
+
+.dashboard .card h3,
+.dashboard .card h4 {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+  letter-spacing: 0.3px;
+}
+
+.dashboard .card .value,
+.dashboard .card .amount,
+.dashboard .card strong {
+  font-size: 32px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--text-primary);
+}
+
+.dashboard .card p {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.dashboard .card.success .value {
+  color: var(--success);
+}
+
+.dashboard .card.warning .value {
+  color: var(--warning);
+}
+
+.dashboard .card.danger .value {
+  color: var(--danger);
+}

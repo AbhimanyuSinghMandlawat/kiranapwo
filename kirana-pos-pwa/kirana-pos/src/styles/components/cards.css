@@ -36,3 +36,17 @@
 .card li {
   margin-bottom: 6px;
 }
+.info-box h3 {
+  margin-bottom: 8px;
+}
+
+.info-box ul {
+  padding-left: 18px;
+  color: #cbd5e1;
+}
+
+.footnote {
+  margin-top: 14px;
+  font-size: 13px;
+  color: #9ca3af;
+}
