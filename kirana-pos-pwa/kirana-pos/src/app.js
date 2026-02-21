@@ -135,15 +135,37 @@ export async function navigate(rawPage) {
 /* =========================================================
    NAV CLICK HANDLERS
 ========================================================= */
+let NAV_BOUND = false;
 
 export function attachNavEvents() {
-  document.querySelectorAll("[data-page]").forEach(btn => {
-    btn.onclick = (e) => {
-      e.preventDefault();
-      location.hash = btn.dataset.page;
-    };
+
+  // prevent multiple bindings after rerenders
+  if (NAV_BOUND) return;
+  NAV_BOUND = true;
+
+  document.addEventListener("click", (e) => {
+    const menuBtn = e.target.closest("[data-menu]");
+    if (menuBtn) {
+      document.body.classList.toggle("drawer-open");
+      return;
+    }
+
+    const btn = e.target.closest("[data-page]");
+    if (!btn) return;
+
+    e.preventDefault();
+
+    const page = btn.dataset.page;
+    if (!page) return;
+
+    // change hash → your router handles everything
+    if (location.hash.replace("#","") !== page) {
+      document.body.classList.remove("drawer-open");
+      location.hash = page;
+    }
   });
 }
+
 
 
 /* =========================================================

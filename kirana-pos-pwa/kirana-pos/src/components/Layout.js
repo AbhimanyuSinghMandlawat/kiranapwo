@@ -18,6 +18,20 @@ export async function renderLayout(contentHtml) {
   return `
     <div class="app-layout">
 
+      <!-- ================= MOBILE HEADER ================= -->
+      <div class="mobile-header">
+        <button id="menu-toggle" class="menu-btn">☰</button>
+        <div class="app-title">Kirana POS</div>
+        <div class="sync-mini">${online ? "🟢" : "🟠"}</div>
+      </div>
+
+      <div id="mobile-drawer" class="mobile-drawer">
+        <div class="drawer-panel">
+          <div id="drawer-links"></div>
+        </div>
+      </div>
+      <!-- ================================================= -->
+
       <aside class="sidebar">
         <h2 class="logo">Kirana POS</h2>
 
@@ -49,6 +63,7 @@ export async function renderLayout(contentHtml) {
         ${contentHtml}
       </main>
 
+      <!-- Bottom nav remains for desktop/tablet -->
       <nav class="bottom-nav">
         <button data-page="dashboard">${t("sidebar.dashboard")}</button>
         <button data-page="add-sale">${t("sidebar.addSale")}</button>
@@ -66,11 +81,42 @@ export async function renderLayout(contentHtml) {
     </div>
   `;
 }
+
+/* ================= EVENTS ================= */
+
 export function attachLayoutEvents() {
+
+  /* language switch */
   import("../i18n/i18n.js").then(({ setLanguage }) => {
     document.querySelectorAll(".lang-switch button").forEach(btn => {
       btn.onclick = () => setLanguage(btn.dataset.lang);
     });
   });
+
+  setupMobileDrawer();
+  window.addEventListener("resize", setupMobileDrawer);
 }
 
+/* ================= MOBILE DRAWER LOGIC ================= */
+
+function setupMobileDrawer() {
+  if (window.innerWidth > 900) return;
+
+  const sidebar = document.querySelector(".sidebar nav");
+  const drawerLinks = document.getElementById("drawer-links");
+
+  if (sidebar && drawerLinks && !drawerLinks.hasChildNodes()) {
+    drawerLinks.innerHTML = sidebar.innerHTML;
+  }
+
+  const toggle = document.getElementById("menu-toggle");
+  const drawer = document.getElementById("mobile-drawer");
+
+  toggle?.addEventListener("click", () => {
+    drawer.classList.toggle("open");
+  });
+
+  drawer?.addEventListener("click", e => {
+    if (e.target === drawer) drawer.classList.remove("open");
+  });
+}

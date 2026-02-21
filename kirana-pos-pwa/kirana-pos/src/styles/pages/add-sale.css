@@ -149,3 +149,9 @@
 .mode-switch {
   margin-bottom: 12px;
 }
+@media (max-width:900px){
+  .sale-container{
+    display:flex;
+    justify-content:center;
+  }
+}
