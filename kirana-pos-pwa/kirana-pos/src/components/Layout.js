@@ -93,30 +93,13 @@ export function attachLayoutEvents() {
     });
   });
 
-  setupMobileDrawer();
-  window.addEventListener("resize", setupMobileDrawer);
-}
-
-/* ================= MOBILE DRAWER LOGIC ================= */
-
-function setupMobileDrawer() {
-  if (window.innerWidth > 900) return;
-
+  // Only copy sidebar links into drawer (no behavior)
   const sidebar = document.querySelector(".sidebar nav");
   const drawerLinks = document.getElementById("drawer-links");
 
-  if (sidebar && drawerLinks && !drawerLinks.hasChildNodes()) {
+  if (sidebar && drawerLinks) {
     drawerLinks.innerHTML = sidebar.innerHTML;
   }
-
-  const toggle = document.getElementById("menu-toggle");
-  const drawer = document.getElementById("mobile-drawer");
-
-  toggle?.addEventListener("click", () => {
-    drawer.classList.toggle("open");
-  });
-
-  drawer?.addEventListener("click", e => {
-    if (e.target === drawer) drawer.classList.remove("open");
-  });
 }
+
+

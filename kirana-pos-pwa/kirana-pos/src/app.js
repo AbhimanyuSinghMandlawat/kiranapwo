@@ -124,12 +124,16 @@ export async function navigate(rawPage) {
   const { attachLayoutEvents } = await import("./components/Layout.js");
   attachLayoutEvents();
 
+  markActivePage(page);
+
   /* IMPORTANT: mark app stable AFTER first render */
   APP_BOOTED = true;
 
   
 
 }
+
+
 
 
 /* =========================================================
@@ -139,17 +143,29 @@ let NAV_BOUND = false;
 
 export function attachNavEvents() {
 
-  // prevent multiple bindings after rerenders
   if (NAV_BOUND) return;
   NAV_BOUND = true;
 
   document.addEventListener("click", (e) => {
-    const menuBtn = e.target.closest("[data-menu]");
+
+    /* ================= MENU TOGGLE ================= */
+    const menuBtn = e.target.closest("#menu-toggle");
     if (menuBtn) {
       document.body.classList.toggle("drawer-open");
       return;
     }
 
+    /* ================= CLOSE WHEN CLICK OUTSIDE ================= */
+    if (document.body.classList.contains("drawer-open")) {
+      const insideDrawer = e.target.closest(".drawer-panel");
+      const clickedMenu = e.target.closest("#menu-toggle");
+
+      if (!insideDrawer && !clickedMenu) {
+        document.body.classList.remove("drawer-open");
+      }
+    }
+
+    /* ================= PAGE NAVIGATION ================= */
     const btn = e.target.closest("[data-page]");
     if (!btn) return;
 
@@ -158,12 +174,23 @@ export function attachNavEvents() {
     const page = btn.dataset.page;
     if (!page) return;
 
-    // change hash → your router handles everything
+    document.body.classList.remove("drawer-open");
+
     if (location.hash.replace("#","") !== page) {
-      document.body.classList.remove("drawer-open");
       location.hash = page;
     }
   });
+}
+function markActivePage(page){
+
+  document.querySelectorAll("[data-page]").forEach(el=>{
+    el.classList.remove("active");
+  });
+
+  document.querySelectorAll(`[data-page="${page}"]`).forEach(el=>{
+    el.classList.add("active");
+  });
+
 }
 
 
