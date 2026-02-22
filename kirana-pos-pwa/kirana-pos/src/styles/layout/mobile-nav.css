@@ -1,29 +1,28 @@
 /* =====================================================
-   MOBILE NAVIGATION (SAFE — DESKTOP FIRST)
+   MOBILE NAVIGATION (STABLE SINGLE-STATE SYSTEM)
+   Controlled only by: body.drawer-open
 ===================================================== */
 
+
 /* ---------- DEFAULT: DESKTOP ---------- */
-/* mobile UI must NOT exist in desktop */
-.mobile-header,
-.mobile-drawer{
+
+.mobile-header{
   display:none !important;
 }
 
-/* sidebar visible normally */
 .sidebar{
   display:block;
 }
 
-/* bottom nav visible (tablet support if you want) */
 .bottom-nav{
   display:flex;
 }
 
 
-/* ---------- MOBILE MODE ONLY ---------- */
+/* ---------- MOBILE MODE ---------- */
 @media (max-width:900px){
 
-  /* hide desktop navigation */
+  /* hide desktop nav */
   .sidebar{
     display:none !important;
   }
@@ -32,13 +31,13 @@
     display:none !important;
   }
 
-  /* show header */
+  /* header */
   .mobile-header{
     display:flex !important;
     position:fixed;
     top:0;
-    left: 0;
-    right: 0;
+    left:0;
+    right:0;
     height:56px;
     padding:0 14px;
     align-items:center;
@@ -61,67 +60,74 @@
     letter-spacing:.4px;
   }
 
-  /* drawer overlay */
+  /* ===== DRAWER BACKDROP ===== */
   .mobile-drawer{
     display:block !important;
     position:fixed;
     inset:0;
-    background:rgba(2,6,23,.55);
-    backdrop-filter:blur(6px);
+    background:rgba(0,0,0,.25);
+    backdrop-filter:blur(2px);
     opacity:0;
     pointer-events:none;
-    transition:.25s ease;
-    z-index:1200;
+    transition:opacity .16s ease;
+    z-index:4000;
   }
 
-  .mobile-drawer.open{
-    opacity:1;
-    pointer-events:auto;
-  }
-
+  /* ===== DRAWER PANEL ===== */
   .drawer-panel{
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
+    display:flex;
+    flex-direction:column;
+    gap:6px;
     width:260px;
     height:100%;
     background:#0f172a;
     border-right:1px solid rgba(255,255,255,.08);
-    padding: 22px 16px;
+    padding:22px 16px;
     transform:translateX(-100%);
-    transition:transform .25s ease;
+    transition:transform .16s cubic-bezier(.4,0,.2,1);
+    box-shadow:0 10px 40px rgba(0,0,0,.45);
   }
 
-  .mobile-drawer.open .drawer-panel{
+  /* ===== OPEN STATE ===== */
+  body.drawer-open .mobile-drawer{
+    opacity:1;
+    pointer-events:auto;
+  }
+
+  body.drawer-open .drawer-panel{
     transform:translateX(0);
   }
 
-  /* spacing fix */
+  /* prevent background scroll */
+  body.drawer-open{
+    overflow:hidden;
+    touch-action:none;
+  }
+
+  /* subtle workspace shift */
+  body.drawer-open .main-content{
+    position:fixed;
+    width:100%;
+    transform:translateX(40px);
+    filter:brightness(.92);
+    transition:transform .16s cubic-bezier(.4,0,.2,1),
+               filter .16s ease;
+  }
+
+  .main-content{
+    transition:transform .16s cubic-bezier(.4,0,.2,1),
+               filter .16s ease;
+  }
+
+  /* spacing under header */
   .main-content{
     padding-top:14px;
   }
 }
-/* ---------- FIX: prevent desktop layout break ---------- */
-.bottom-nav{
-  position:fixed;
-  left:0;
-  right:0;
-  bottom:0;
-  height:64px;
-  z-index:1000;
-}
-.bottom-nav [data-page].active{
-  color:#22c55e;
-  font-weight:600;
-}
 
-/* desktop must not reserve space */
-@media (min-width:901px){
-  .bottom-nav{
-    display:none !important;
-  }
-}
-/* make nav links look like sidebar */
+
+/* ---------- NAV LINKS STYLE ---------- */
+
 .drawer-panel a{
   display:block;
   padding:12px 14px;
@@ -132,55 +138,47 @@
   transition:background .18s ease, color .18s ease, transform .12s ease;
 }
 
-/* hover / tap feedback */
-.drawer-panel a:active{
-  transform:scale(.97);
-}
-
 .drawer-panel a:hover{
   background:rgba(255,255,255,.06);
   color:#fff;
 }
 
-/* active page highlight */
+.drawer-panel a:active{
+  transform:scale(.97);
+}
+
 .drawer-panel a.active{
   background:linear-gradient(135deg,#22c55e,#10b981);
-  color:#052e16;
+  color:#052e16 !important;
   font-weight:600;
 }
 
-/* language switch spacing */
+/* language divider */
 .drawer-panel .lang-switch{
   margin-bottom:12px;
   padding-bottom:12px;
   border-bottom:1px solid rgba(255,255,255,.08);
 }
-body.drawer-open .mobile-drawer{
-  opacity:1;
-  pointer-events:auto;
-}
 
-body.drawer-open .drawer-panel{
-  transform:translateX(0);
-}
-.mobile-drawer{
-  opacity:0;
-  pointer-events:none;
-}
-/* ===== PREVENT BACKGROUND SCROLL WHEN DRAWER OPEN ===== */
-body.drawer-open{
-  overflow:hidden;
-  touch-action:none;
-}
 
-/* iOS bounce prevention */
-body.drawer-open .main-content{
+/* ---------- BOTTOM NAV DESKTOP SAFETY ---------- */
+
+.bottom-nav{
   position:fixed;
-  width:100%;
+  left:0;
+  right:0;
+  bottom:0;
+  height:64px;
+  z-index:1000;
 }
-.drawer-panel [data-page].active{
-  background:linear-gradient(135deg,#22c55e,#10b981);
-  color:#052e16 !important;
-  border-radius:10px;
+
+.bottom-nav [data-page].active{
+  color:#22c55e;
   font-weight:600;
+}
+
+@media (min-width:901px){
+  .bottom-nav{
+    display:none !important;
+  }
 }

@@ -10,3 +10,17 @@
   flex: 1;
   padding: 32px;
 }
+/* move workspace when drawer opens */
+@media (max-width:900px){
+  body.drawer-open .main-content{
+    transform:translateX(40px);
+    filter:brightness(.92);
+    transition:transform .16s cubic-bezier(.4,0,.2,1),
+               filter .16s ease;
+  }
+
+  .main-content{
+    transition:transform .16s cubic-bezier(.4,0,.2,1),
+               filter .16s ease;
+  }
+}

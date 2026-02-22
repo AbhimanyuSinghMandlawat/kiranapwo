@@ -93,13 +93,33 @@ export function attachLayoutEvents() {
     });
   });
 
-  // Only copy sidebar links into drawer (no behavior)
-  const sidebar = document.querySelector(".sidebar nav");
-  const drawerLinks = document.getElementById("drawer-links");
+  /* move single navigation instead of cloning */
+  function placeNavigation() {
 
-  if (sidebar && drawerLinks) {
-    drawerLinks.innerHTML = sidebar.innerHTML;
+    const sidebar = document.querySelector(".sidebar");
+    const sidebarNav = document.querySelector(".sidebar nav, #drawer-links nav");
+    const drawerLinks = document.getElementById("drawer-links");
+
+
+    if (!sidebar || !sidebarNav || !drawerLinks) return;
+
+    if (window.innerWidth <= 900) {
+      if (!drawerLinks.contains(sidebarNav)) {
+        drawerLinks.appendChild(sidebarNav);
+      }
+    } else {
+      const sidebar = document.querySelector(".sidebar");
+      if (sidebar && !sidebar.contains(sidebarNav)) {
+        sidebar.appendChild(sidebarNav);
+      }
+      document.body.classList.remove("drawer-open");
+    }
   }
+  requestAnimationFrame(placeNavigation);
+
+  window.addEventListener("resize", () => {
+    requestAnimationFrame(placeNavigation);
+  });
 }
 
 
