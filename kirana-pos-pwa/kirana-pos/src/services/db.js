@@ -538,4 +538,31 @@ export async function insertOpeningStock(items) {
     tx.onabort = () => reject(tx.error);
   });
 }
+export async function updateUser(user) {
+  const db = await openDB();
+  return new Promise(resolve => {
+    const tx = db.transaction("users", "readwrite");
+    tx.objectStore("users").put(user);
+    tx.oncomplete = resolve;
+  });
+}
+export async function saveShopSettings(data) {
+  const db = await openDB();
+  return new Promise(resolve => {
+    const tx = db.transaction("settings", "readwrite");
+    tx.objectStore("settings").put({
+      id: "shop_config",
+      ...data
+    });
+    tx.oncomplete = resolve;
+  });
+}
 
+export async function getShopSettings() {
+  const db = await openDB();
+  return new Promise(resolve => {
+    const tx = db.transaction("settings", "readonly");
+    const req = tx.objectStore("settings").get("shop_config");
+    req.onsuccess = () => resolve(req.result || null);
+  });
+}

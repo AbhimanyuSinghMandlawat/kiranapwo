@@ -1,5 +1,5 @@
 import { renderLayout } from "../components/Layout";
-import { saveSale, getAllStock, processSale } from "../services/db";
+import { saveSale, getAllStock, processSale,getShopSettings } from "../services/db";
 import { navigate } from "../app";
 import { showToast } from "../utils/toast";
 import { searchStock } from "../utils/helpers";
@@ -17,6 +17,8 @@ import {
 let cartItems = [];
 let saleMode = "amount";
 let selectedPayment = null;
+
+
 
 function addToCart(stockItem, qty = 1) {
   const existing = cartItems.find(i => i.itemId === stockItem.id);
@@ -435,6 +437,14 @@ export async function renderAddSale(container) {
        timestamp: Date.now(),
        estimatedProfit: 0
       };
+      if (selectedPayment === "upi") {
+        const { openUPIPayment } = await import("../components/UPIPaymentOverlay.js");
+        const confirmed = await openUPIPayment(amount);
+        if (!confirmed) {
+          showToast("UPI payment cancelled", "error");
+          return;
+        }
+      }
     }
 
     if (sale) {

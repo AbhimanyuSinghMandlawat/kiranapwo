@@ -2,15 +2,19 @@
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  height: 70px;
+  height: 140px;
   padding: 12px 8px;
+  overflow: hidden; /* prevents value escape */
+  position: relative;
 }
 
 .profit-bar-wrapper {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  justify-content: flex-end;
+  height: 100%;
+  position: relative;
 }
 
 .profit-bar {

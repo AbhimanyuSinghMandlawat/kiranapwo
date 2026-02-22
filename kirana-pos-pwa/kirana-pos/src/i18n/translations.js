@@ -15,6 +15,7 @@ export const translations = {
       creditScore: "Credit Score",
       creditLedger: "Credit Ledger",
       manageStaff: "Manage Staff",
+      shopSettings: "Shop Settings",
       logout: "Logout"
     },
 
@@ -96,6 +97,7 @@ export const translations = {
       creditScore: "क्रेडिट स्कोर",
       creditLedger: "उधार खाता",
       manageStaff: "स्टाफ प्रबंधन",
+      shopSettings: "दुकान सेटिंग्स",
       logout: "लॉगआउट"
     },
 
@@ -175,6 +177,7 @@ export const translations = {
       creditScore: "Credit Score",
       creditLedger: "Udhar Khata",
       manageStaff: "Staff Manage",
+      shopSettings: "Shop Settings",
       logout: "Logout"
     },
 

@@ -56,7 +56,9 @@ export async function login(username, password) {
     user: {
       id: user.id,
       name: user.name,
-      role: user.role
+      role: user.role,
+      upiId: user.upiId || null   // include UPI
+
     },
     loginTime: Date.now()
   });

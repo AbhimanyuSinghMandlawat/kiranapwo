@@ -14,6 +14,7 @@ import { getAllUsers, isOnboardingCompleted } from "./services/db";
 
 import { renderManageStaff } from "./pages/ManageStaff";
 import { renderStaffHistory } from "./pages/StaffHistory";
+import { renderShopSettings } from "./pages/ShopSettings";
 
 /* =========================================================
    INTERNAL STATE
@@ -37,6 +38,7 @@ const PAGE_MAP = {
   "staff-history": renderStaffHistory,
   "opening-stock": renderOpeningStock,
   "opening-stock-entry": renderOpeningStockEntry,
+  "shop-settings": renderShopSettings,
 };
 
 
@@ -45,7 +47,7 @@ const PAGE_MAP = {
 ========================================================= */
 
 const PAGE_ACCESS = {
-  owner: ["dashboard","add-sale","reports","credit","ledger","stock","manage-staff","staff-history"],
+  owner: ["dashboard","add-sale","reports","credit","ledger","stock","manage-staff","staff-history","shop-settings"],
   manager: ["dashboard","add-sale","reports","credit","ledger","stock","staff-history"],
   cashier: ["dashboard","add-sale"]
 };
@@ -117,8 +119,22 @@ export async function navigate(rawPage) {
   /* ------------------ RENDER ------------------ */
 
   const renderer = PAGE_MAP[page] || renderDashboard;
-  await renderer(app);
+  /* trigger exit animation */
+  const content = document.querySelector(".main-content");
+  if (content) {
+    content.classList.add("page-exit");
+    await new Promise(resolve => setTimeout(resolve, 140));
+    content.classList.remove("page-exit");
+  }
 
+  await renderer(app);
+  /* re-trigger enter animation */
+  const newContent = document.querySelector(".main-content");
+  if (newContent) {
+    newContent.classList.remove("page-enter");
+    void newContent.offsetWidth;
+    newContent.classList.add("page-enter");
+  }
   attachNavEvents();
 
   const { attachLayoutEvents } = await import("./components/Layout.js");

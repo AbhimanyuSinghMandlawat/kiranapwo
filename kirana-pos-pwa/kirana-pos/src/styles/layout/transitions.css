@@ -1,18 +1,51 @@
 /* =====================================================
    PAGE TRANSITIONS & MOTION
    ===================================================== */
-.page-enter {
-  animation: pageEnter 0.35s ease-out both;
+
+
+/* ======================================================
+   ROUTE TRANSITIONS (Slide + Fade)
+   Safe for SPA navigation
+====================================================== */
+
+.main-content {
+  position: relative;
+  overflow: hidden;
 }
 
-@keyframes pageEnter {
+/* base state */
+.page-enter {
+  opacity: 0;
+  transform: translateX(20px);
+  animation: pageIn 160ms ease-out forwards;
+}
+
+/* exit animation */
+.page-exit {
+  animation: pageOut 140ms ease-in forwards;
+}
+
+/* slide in */
+@keyframes pageIn {
   from {
     opacity: 0;
-    transform: translateY(12px);
+    transform: translateX(20px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translateX(0);
+  }
+}
+
+/* slide out */
+@keyframes pageOut {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-15px);
   }
 }
 

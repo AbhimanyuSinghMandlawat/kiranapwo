@@ -51,6 +51,7 @@ export async function renderLayout(contentHtml) {
           ${!isCashier ? `<a href="#" data-page="ledger">${t("sidebar.creditLedger")}</a>` : ""}
 
           ${isOwner ? `<a href="#" data-page="manage-staff">${t("sidebar.manageStaff")}</a>` : ""}
+          ${isOwner ? `<a href="#" data-page="shop-settings">${t("sidebar.shopSettings")}</a>` : ""}
 
           <a href="#" data-page="logout">${t("sidebar.logout")}</a>
         </nav>
@@ -74,6 +75,7 @@ export async function renderLayout(contentHtml) {
         ${!isCashier ? `<a href="#" data-page="ledger">${t("sidebar.creditLedger")}</a>` : ""}
 
         ${isOwner ? `<a href="#" data-page="manage-staff">${t("sidebar.manageStaff")}</a>` : ""}
+        ${isOwner ? `<a href="#" data-page="shop-settings">${t("sidebar.shopSettings")}</a>` : ""}
 
         <a href="#" data-page="logout">${t("sidebar.logout")}</a>
       </nav>
