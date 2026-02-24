@@ -9,7 +9,7 @@ import { renderDailySummary } from "../components/DailySummaryModal";
 import { t } from "../i18n/i18n";
 
 
-export async function renderDashboard(container) {
+export async function renderDashboard() {
   const sales = await getAllSales();
   console.group("=== DASHBOARD ACCOUNTING AUDIT ===");
 
@@ -131,7 +131,7 @@ export async function renderDashboard(container) {
 
 
   // ✅ NUMBER ANIMATION (unchanged logic)
-  container.querySelectorAll(".card h2").forEach(el => {
+  document.querySelectorAll(".card h2").forEach(el => {
     const v = parseInt(el.textContent.replace(/\D/g, ""));
     if (!isNaN(v)) animateNumber(el, v);
   });

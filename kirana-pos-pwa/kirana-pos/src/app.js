@@ -57,21 +57,21 @@ const PAGE_ACCESS = {
    MAIN NAVIGATION
 ========================================================= */
 
-export async function navigate(rawPage,skipHashUpdate = false) {
+export async function navigate(rawPage, skipHashUpdate = false) {
 
   let page = rawPage.split("?")[0] || "dashboard";
-  if(!skipHashUpdate) {
-    if (location.hash.replace("#","") !== page) {
+  const app = document.getElementById("app");
+
+  if (!skipHashUpdate) {
+    if (location.hash.replace("#", "") !== page) {
       location.hash = page;
       return;
     }
   }
-  const app = document.getElementById("app");
 
   const user = await getCurrentUser();
 
-  /* ------------------ NOT LOGGED IN ------------------ */
-
+  /* NOT LOGGED IN */
   if (!user) {
     const users = await getAllUsers();
     const ownerExists = users.some(u => u.role === "owner");
@@ -91,56 +91,56 @@ export async function navigate(rawPage,skipHashUpdate = false) {
     return;
   }
 
-  /* ------------------ LOGOUT ------------------ */
-
+  /* LOGOUT */
   if (page === "logout") {
     await logout();
     location.hash = "login";
     return;
   }
 
-  /* =========================================================
-     ONBOARDING GUARD
-     Only active AFTER first render to prevent loop
-  ========================================================= */
+  /* ENSURE LAYOUT EXISTS */
+  if (!document.querySelector(".main-content")) {
+    const { renderLayout } = await import("./components/Layout.js");
+    app.innerHTML = await renderLayout("");
+  }
 
   const onboardingDone = await isOnboardingCompleted();
 
   if (
     APP_BOOTED &&
     !onboardingDone &&
-    !["opening-stock","opening-stock-entry"].includes(page)
+    !["opening-stock", "opening-stock-entry"].includes(page)
   ) {
     page = "opening-stock";
   }
 
-  /* ------------------ ROLE GUARD ------------------ */
-
-  if (onboardingDone) {
+  if (user && onboardingDone) {
     if (!PAGE_ACCESS[user.role]?.includes(page)) {
       page = "dashboard";
     }
   }
 
-  /* ------------------ RENDER ------------------ */
-
   const renderer = PAGE_MAP[page] || renderDashboard;
-  /* trigger exit animation */
+
   const content = document.querySelector(".main-content");
+
   if (content) {
     content.classList.add("page-exit");
     await new Promise(resolve => setTimeout(resolve, 140));
     content.classList.remove("page-exit");
   }
 
-  await renderer();
-  /* re-trigger enter animation */
+  /* ✅ PASS CONTAINER */
+  await renderer(app);
+
   const newContent = document.querySelector(".main-content");
+
   if (newContent) {
     newContent.classList.remove("page-enter");
     void newContent.offsetWidth;
     newContent.classList.add("page-enter");
   }
+
   attachNavEvents();
 
   const { attachLayoutEvents } = await import("./components/Layout.js");
@@ -148,15 +148,8 @@ export async function navigate(rawPage,skipHashUpdate = false) {
 
   markActivePage(page);
 
-  /* IMPORTANT: mark app stable AFTER first render */
   APP_BOOTED = true;
-
-  
-
 }
-
-
-
 
 /* =========================================================
    NAV CLICK HANDLERS

@@ -1,26 +1,65 @@
 /* =====================================================
    APP LAYOUT
    ===================================================== */
+
 .app-layout {
   display: flex;
   min-height: 100vh;
+  background: var(--bg-primary);
 }
+
+/* ======================
+   SIDEBAR (DESKTOP)
+====================== */
+
+.sidebar {
+  width: 240px;
+  flex-shrink: 0;
+}
+
+/* ======================
+   MAIN CONTENT
+====================== */
 
 .main-content {
   flex: 1;
   padding: 32px;
+  overflow-y: auto;
+  transition: transform .16s cubic-bezier(.4,0,.2,1),
+              filter .16s ease;
 }
-/* move workspace when drawer opens */
-@media (max-width:900px){
-  body.drawer-open .main-content{
-    transform:translateX(40px);
-    filter:brightness(.92);
-    transition:transform .16s cubic-bezier(.4,0,.2,1),
-               filter .16s ease;
+
+/* =====================================================
+   MOBILE RESPONSIVE
+   ===================================================== */
+
+@media (max-width: 900px) {
+
+  /* Hide desktop sidebar */
+  .sidebar {
+    display: none;
   }
 
-  .main-content{
-    transition:transform .16s cubic-bezier(.4,0,.2,1),
-               filter .16s ease;
+  /* ===== MOBILE HEADER ===== */
+  .mobile-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 60px;
+    z-index: 1000;
   }
+
+  /* Push content below fixed header */
+  .main-content {
+    margin-top: 60px;       /* header height */
+    padding: 24px;
+  }
+
+  /* ===== DRAWER ANIMATION ===== */
+  body.drawer-open .main-content {
+    transform: translateX(40px);
+    filter: brightness(.92);
+  }
+
 }
