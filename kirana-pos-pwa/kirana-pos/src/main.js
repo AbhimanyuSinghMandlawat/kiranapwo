@@ -37,8 +37,6 @@ function handleNetworkChange() {
     }, 1000);
   }
 
-  // Re-navigate to current page to refresh UI state
-  navigate(page);
 }
 
 // Listen for online/offline changes
@@ -50,10 +48,16 @@ window.addEventListener("offline", handleNetworkChange);
 =============================== */
 
 // Start app from current hash or default dashboard
-window.onload = () => {
-  const startPage = location.hash.replace("#", "") || "dashboard";
-  navigate(startPage);
-};
+window.addEventListener("load", async () => {
+  const app = document.getElementById("app");
+
+  // render empty layout shell once
+  const { renderLayout } = await import("./components/Layout");
+  app.innerHTML = await renderLayout("");
+
+  const page = location.hash.replace("#", "") || "dashboard";
+  await navigate(page);
+});
 
 
 // Initial network status setup

@@ -139,7 +139,6 @@ export async function getAllSales() {
 export async function addStockItem(item) {
   const db = await openDB();
 
-
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STOCK_STORE, "readwrite");
     const store = tx.objectStore(STOCK_STORE);
@@ -154,17 +153,21 @@ export async function addStockItem(item) {
       }
 
       store.put(item);
+    };
 
+    tx.oncomplete = async () => {
       const actor = await getCurrentUser();
-      await logStaffAction({
-        module: "stock",
-        action: "NEW ITEM",
-        summary: `Created item ${item.name}`,
-        details: item
-      });
-
+        await logStaffAction(actor, {
+          module: "stock",
+          action: "NEW_ITEM",
+          summary: `Created item ${item.name}`,
+          details: item
+        });
       resolve();
     };
+
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error);
   });
 }
 

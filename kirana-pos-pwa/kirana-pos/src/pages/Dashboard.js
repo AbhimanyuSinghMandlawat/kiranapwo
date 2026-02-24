@@ -113,7 +113,7 @@ export async function renderDashboard(container) {
     </section>
   `;
 
-  container.innerHTML = await renderLayout(content);
+  document.querySelector(".main-content").innerHTML = content;
   if (!document.querySelector(".dashboard")) return;
 
   document.getElementById("view-summary").onclick = async () => {

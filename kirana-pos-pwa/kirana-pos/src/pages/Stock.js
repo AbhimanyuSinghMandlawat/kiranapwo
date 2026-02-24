@@ -10,7 +10,7 @@ import { showConfirmModal } from "../components/ConfirmModal";
 import { showStockEditModal } from "../components/StockEditModal";
 import { attachNavEvents } from "../app";
 
-export async function renderStock(container) {
+export async function renderStock() {
 
   const stockItems = await getAllStock();
 
@@ -60,8 +60,8 @@ export async function renderStock(container) {
     </section>
   `;
 
-  container.innerHTML = await renderLayout(content);
-  attachNavEvents();
+  document.querySelector(".main-content").innerHTML = content;
+  
 
   /* ADD ITEM */
   document.getElementById("add-item").onclick = async () => {
@@ -86,8 +86,9 @@ export async function renderStock(container) {
       threshold
     });
 
-    await renderStock(container);
     showToast("Item added", "success");
+    await renderStock();
+    
   };
 
   /* ADD QUANTITY */
@@ -143,8 +144,8 @@ export async function renderStock(container) {
         confirmText: "Save",
         onConfirm: async value => {
           await addStockItem({ ...item, threshold: value });
-          await renderStock(container);
           showToast("Alert updated", "success");
+          await renderStock();
         }
       });
     };

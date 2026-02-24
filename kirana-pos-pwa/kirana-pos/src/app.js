@@ -57,9 +57,15 @@ const PAGE_ACCESS = {
    MAIN NAVIGATION
 ========================================================= */
 
-export async function navigate(rawPage) {
+export async function navigate(rawPage,skipHashUpdate = false) {
 
   let page = rawPage.split("?")[0] || "dashboard";
+  if(!skipHashUpdate) {
+    if (location.hash.replace("#","") !== page) {
+      location.hash = page;
+      return;
+    }
+  }
   const app = document.getElementById("app");
 
   const user = await getCurrentUser();
@@ -127,7 +133,7 @@ export async function navigate(rawPage) {
     content.classList.remove("page-exit");
   }
 
-  await renderer(app);
+  await renderer();
   /* re-trigger enter animation */
   const newContent = document.querySelector(".main-content");
   if (newContent) {
@@ -164,14 +170,12 @@ export function attachNavEvents() {
 
   document.addEventListener("click", (e) => {
 
-    /* ================= MENU TOGGLE ================= */
     const menuBtn = e.target.closest("#menu-toggle");
     if (menuBtn) {
       document.body.classList.toggle("drawer-open");
       return;
     }
 
-    /* ================= CLOSE WHEN CLICK OUTSIDE ================= */
     if (document.body.classList.contains("drawer-open")) {
       const insideDrawer = e.target.closest(".drawer-panel");
       const clickedMenu = e.target.closest("#menu-toggle");
@@ -181,7 +185,6 @@ export function attachNavEvents() {
       }
     }
 
-    /* ================= PAGE NAVIGATION ================= */
     const btn = e.target.closest("[data-page]");
     if (!btn) return;
 
@@ -217,26 +220,7 @@ function markActivePage(page){
 
 window.onhashchange = () => {
   const page = location.hash.replace("#", "") || "dashboard";
-  navigate(page);
-};
-
-
-/* =========================================================
-   INITIAL LOAD
-========================================================= */
-
-window.onload = async () => {
-  const user = await getCurrentUser();
-
-  if (!user) {
-    location.hash = "login";
-    return;
-  }
-
-  const done = await isOnboardingCompleted();
-
-  // first route selection only
-  location.hash = done ? "dashboard" : "opening-stock";
+  navigate(page, true); // skip hash update
 };
 
 /* =========================================

@@ -5,10 +5,11 @@ import { showToast } from "../utils/toast";
 import { changeStaffSalary, softDeleteStaff } from "../services/payroll";
 import { getCurrentUser } from "../auth/authService";
 import { logStaffAction } from "../services/staffHistory";
+import { navigate } from "../app";
 
 
 
-export async function renderManageStaff(container) {
+export async function renderManageStaff() {
 
   const users = await getAllUsers();
   const currentUser = await getCurrentUser();
@@ -110,7 +111,7 @@ export async function renderManageStaff(container) {
     </section>
   `;
 
-  container.innerHTML = await renderLayout(content);
+  document.querySelector(".main-content").innerHTML = content;
 
   // safety: stop if DOM changed due to navigation
   if (!document.getElementById("create-staff")) return;
@@ -154,7 +155,7 @@ export async function renderManageStaff(container) {
 
     showToast("Staff created successfully", "success");
 
-    await renderManageStaff(container);
+    await renderManageStaff();
     return;
 
   };
@@ -180,7 +181,7 @@ export async function renderManageStaff(container) {
 
       showToast("Salary updated", "success");
 
-      await renderManageStaff(container);
+      await renderManageStaff();
       return;
 
     };
@@ -201,7 +202,7 @@ export async function renderManageStaff(container) {
 
       showToast("Staff marked as left", "success");
 
-      await renderManageStaff(container);
+      await renderManageStaff();
       return;
 
     };
@@ -219,7 +220,7 @@ export async function renderManageStaff(container) {
 
       showToast("Staff deleted successfully", "success");
 
-      await renderManageStaff(container);
+      await renderManageStaff();
       return;
 
     };

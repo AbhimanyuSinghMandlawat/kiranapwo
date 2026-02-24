@@ -136,5 +136,5 @@ export async function renderReports(container) {
     </section>
   `;
 
-  container.innerHTML = await renderLayout(content);
+  document.querySelector(".main-content").innerHTML = content;
 }
