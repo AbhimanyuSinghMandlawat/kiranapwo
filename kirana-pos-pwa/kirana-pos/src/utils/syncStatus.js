@@ -6,7 +6,7 @@ export function updateSyncStatus(state, time = null) {
   let dotClass = "sync-dot";
 
   if (state === "offline") {
-    text = "Offline — saving locally";
+    text = "Offline - saving locally";
   }
 
   if (state === "syncing") {
