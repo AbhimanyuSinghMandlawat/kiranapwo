@@ -5,12 +5,10 @@ import { getEligibleCoupons } from "../services/couponService";
 export async function renderCustomerShopCoupons(container) {
 
   const session =
-    JSON.parse(sessionStorage.getItem("customerSession"));
+    JSON.parse(sessionStorage.getItem("customer_session"));
 
   if (!session) {
-
     location.hash = "customer-login";
-
     return;
   }
 
@@ -21,6 +19,54 @@ export async function renderCustomerShopCoupons(container) {
 
   const shops = await getAllShops();
 
+  /* SHOW SHOP LIST FIRST */
+  if (!shopId) {
+
+    container.innerHTML = `
+      <section>
+
+        <h2>Your Shops</h2>
+
+        <div class="coupon-grid">
+
+          ${shops.map(shop => `
+            <div class="glass-card coupon-card"
+                 data-shop="${shop.id}">
+
+              <div class="coupon-header">
+                ${shop.name}
+              </div>
+
+              <div class="coupon-body">
+                View available coupons
+              </div>
+
+            </div>
+          `).join("")}
+
+        </div>
+
+      </section>
+    `;
+
+    container.querySelectorAll("[data-shop]")
+      .forEach(card => {
+
+        card.onclick = () => {
+
+          location.hash =
+            "customer-coupons?shop=" +
+            card.dataset.shop;
+
+        };
+
+      });
+
+    return;
+  }
+
+  /* SHOW COUPONS FOR SELECTED SHOP */
+
   const shop =
     shops.find(s => s.id === shopId);
 
@@ -30,65 +76,39 @@ export async function renderCustomerShopCoupons(container) {
       shopId
     );
 
-  const couponCards = coupons.length === 0
-    ? `<div class="glass-card">
-         No coupons available.
-       </div>`
-    : coupons.map(c => `
-      <div class="glass-card coupon-card">
-
-        <div class="coupon-header">
-
-          <div class="coupon-code">
-            ${c.code}
-          </div>
-
-          <div class="coupon-discount">
-            ${c.value}% OFF
-          </div>
-
-        </div>
-
-        <div class="coupon-body">
-
-          <div>
-            Min Purchase: ₹${c.minPurchase}
-          </div>
-
-          <div>
-            Loyalty Required:
-            ${c.loyaltyRequired}
-          </div>
-
-          <div class="coupon-expiry">
-            Expires:
-            ${new Date(c.expiryDate)
-              .toLocaleDateString()}
-          </div>
-
-        </div>
-
-      </div>
-    `).join("");
-
-
-
-  const content = `
-    <section class="dashboard">
+  container.innerHTML = `
+    <section>
 
       <h2>${shop.name}</h2>
 
       <div class="coupon-grid">
 
-        ${couponCards}
+        ${coupons.map(c => `
+          <div class="glass-card coupon-card">
+
+            <div class="coupon-header">
+              ${c.code}
+            </div>
+
+            <div class="coupon-body">
+
+              ${c.value}% OFF<br>
+
+              Min ₹${c.minPurchase}<br>
+
+              Expires:
+              ${new Date(c.expiryDate)
+                .toLocaleDateString()}
+
+            </div>
+
+          </div>
+        `).join("")}
 
       </div>
 
     </section>
   `;
-
-
-  container.innerHTML =
-    await renderLayout(content);
-
+  container.innerHTML = content;
 }
+

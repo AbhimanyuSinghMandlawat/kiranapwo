@@ -1,17 +1,24 @@
 export function renderCustomerLayout(customerName){
 
   setTimeout(() => {
+    const currentPage =
+      location.hash.replace("#","") || "customer-profile";
 
     document
-      .querySelectorAll(".sidebar-link")
+      .querySelectorAll(".customer-sidebar-link")
       .forEach(link => {
 
-        link.addEventListener("click",() => {
+        link.classList.remove("active");
 
-          const page =
+        if(link.dataset.page == currentPage) {
+          link.classList.add("active");
+        }
+
+        link.onclick = () => {
+
+          location.hash =
             link.dataset.page;
-          location.hash = page;
-        });
+        };
       });
   },0);
 
