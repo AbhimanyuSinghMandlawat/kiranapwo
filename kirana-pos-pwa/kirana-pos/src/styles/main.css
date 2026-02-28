@@ -14,6 +14,7 @@
 @import "./layout/mobile-nav.css";
 @import "./layout/transitions.css";
 @import "./layout/upi.css";
+@import "./layout/customer-sidebar.css";
 
 /* components */
 @import "./components/buttons.css";
@@ -36,6 +37,9 @@
 @import "./pages/stock.css";
 @import "./pages/openingStock.css";
 @import "./pages/shop-settings.css";
+@import "./pages/customerPortal.css";
+@import "./pages/customerCoupons.css";
+@import "./pages/coupon.css";
 
 /* auth/onboarding */
 @import "./pages/auth.css";

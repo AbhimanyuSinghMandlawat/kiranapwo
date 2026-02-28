@@ -73,7 +73,19 @@ export async function login(username, password) {
 }
 
 export async function logout() {
+
+  /* clear owner session */
   await clearSession();
+
+  /* clear customer session */
+  sessionStorage.removeItem("customer_session");
+
+  /* clear any legacy session */
+  sessionStorage.removeItem("session");
+
+  /* redirect to welcome page */
+  location.hash = "";
+
 }
 
 export async function getCurrentUser() {

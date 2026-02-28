@@ -1,7 +1,7 @@
 import { logStaffAction } from "./staffHistory";
 import { getCurrentUser } from "../auth/authService";
 const DB_NAME = "kirana_pos_db";
-const DB_VERSION = 16;     // only change: increased version
+const DB_VERSION = 21;     // only change: increased version
 
 const SALES_STORE = "sales";
 const STOCK_STORE = "stocks";
@@ -77,6 +77,30 @@ export function openDB() {
         store.createIndex("timestamp", "timestamp",{ unique: false });
         store.createIndex("actorId", "actorId",{ unique: false });
         store.createIndex("module", "module",{ unique: false });
+      }
+
+      if (!db.objectStoreNames.contains("customers")) {
+
+       const store = db.createObjectStore("customers", {
+         keyPath: "id"
+        });
+
+        store.createIndex("phone", "phone", { unique: true });
+
+      }
+
+      if (!db.objectStoreNames.contains("shops")) {
+        db.createObjectStore("shops", { keyPath: "id" });
+      }
+
+      if (!db.objectStoreNames.contains("coupons")) {
+        db.createObjectStore("coupons", { keyPath: "id" });
+      }
+
+      if (!db.objectStoreNames.contains("customer_shops")) {
+        const store = db.createObjectStore("customer_shops", { keyPath: "id" });
+        store.createIndex("customerId", "customerId");
+        store.createIndex("shopId", "shopId");
       }
     };
 

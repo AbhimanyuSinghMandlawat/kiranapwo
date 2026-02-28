@@ -1,0 +1,39 @@
+.coupon-grid {
+
+  display: grid;
+  grid-template-columns: repeat(auto-fill,minmax(260px,1fr));
+  gap: 16px;
+
+}
+
+.coupon-card {
+
+  position: relative;
+  padding: 18px;
+
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.08);
+
+}
+
+.coupon-header {
+
+  display:flex;
+  justify-content:space-between;
+  margin-bottom:12px;
+
+}
+
+.coupon-code {
+
+  font-family: monospace;
+  opacity:0.8;
+
+}
+
+.coupon-discount {
+
+  font-size: 28px;
+  font-weight: bold;
+
+}

@@ -16,12 +16,24 @@ import { renderManageStaff } from "./pages/ManageStaff";
 import { renderStaffHistory } from "./pages/StaffHistory";
 import { renderShopSettings } from "./pages/ShopSettings";
 import { renderAuditLog } from "./pages/AuditLog";
+import { renderCustomerLogin } from "./pages/CustomerLogin";
+import { renderCustomerRegister } from "./pages/CustomerRegister";
+import { renderCustomerPortal } from "./pages/CustomerPortal";
+import { renderCustomerShopCoupons } from "./pages/CustomerShopCoupons";
+import { renderCouponManager } from "./pages/CouponManager";
+
+import {
+  isCustomerLoggedIn,
+  logoutCustomer,
+  getCurrentCustomer   // ✅ FIX: added missing import
+} from "./services/customerAuthService";
+
 
 /* =========================================================
    INTERNAL STATE
 ========================================================= */
 
-let APP_BOOTED = false; // prevents onboarding redirect loop
+let APP_BOOTED = false;
 
 
 /* =========================================================
@@ -41,6 +53,11 @@ const PAGE_MAP = {
   "opening-stock-entry": renderOpeningStockEntry,
   "audit-log": renderAuditLog,
   "shop-settings": renderShopSettings,
+  "customer-login": renderCustomerLogin,
+  "customer-register": renderCustomerRegister,
+  "customer-portal": renderCustomerPortal,
+  "customer-shop": renderCustomerShopCoupons,
+  "coupon-manager": renderCouponManager,
 };
 
 
@@ -72,9 +89,14 @@ export async function navigate(rawPage, skipHashUpdate = false) {
   }
 
   const user = await getCurrentUser();
+  const customerLoggedIn = isCustomerLoggedIn();
 
-  /* NOT LOGGED IN */
-  if (!user) {
+  /* =====================================================
+     NOT LOGGED IN
+  ===================================================== */
+
+  if (!user && !customerLoggedIn) {
+
     const users = await getAllUsers();
     const ownerExists = users.some(u => u.role === "owner");
 
@@ -88,25 +110,97 @@ export async function navigate(rawPage, skipHashUpdate = false) {
       return;
     }
 
+    if (page === "customer-login") {
+      await renderCustomerLogin(app);
+      attachNavEvents();
+      return;
+    }
+
+    if (page === "customer-register") {
+      await renderCustomerRegister(app);
+      attachNavEvents();
+      return;
+    }
+
     app.innerHTML = Welcome();
     attachNavEvents();
     return;
   }
 
-  /* LOGOUT */
-  if (page === "logout") {
-    await logout();
-    location.hash = "login";
+
+  /* =====================================================
+     CUSTOMER LOGGED IN
+  ===================================================== */
+
+  if (customerLoggedIn && !user) {
+
+    const { getCurrentCustomer } = 
+      await import("./services/customerAuthService.js")
+
+    const customer = await getCurrentCustomer();
+
+    const { renderCustomerLayout } =
+      await import("./components/CustomerLayout.js");
+
+    app.innerHTML =
+      renderCustomerLayout(customer.name);
+
+    const container =
+      document.getElementById("customer-content");
+
+
+    if (page === "customer-coupons") {
+
+      await renderCustomerShopCoupons(container);
+      attachNavEvents();
+
+      return;
+    }
+
+
+    if (page === "customer-logout") {
+
+      await logoutCustomer();
+
+      location.hash = "customer-login";
+
+      return;
+    }
+
+
+    await renderCustomerPortal(container);
+    attachNavEvents();
+
     return;
   }
 
-  /* ENSURE LAYOUT EXISTS */
+
+  /* =====================================================
+     OWNER / STAFF LOGGED IN
+  ===================================================== */
+
+  if (!user) return;
+
+
   if (!document.querySelector(".main-content")) {
-    const { renderLayout } = await import("./components/Layout.js");
-    app.innerHTML = await renderLayout("");
+
+    const { renderLayout } =
+      await import("./components/Layout.js");
+
+    app.innerHTML =
+      await renderLayout("");
   }
 
-  const onboardingDone = await isOnboardingCompleted();
+
+  const onboardingDone =
+    await isOnboardingCompleted();
+
+  if (page === "logout") {
+    await logout ();
+    location.hash = "";
+    return;
+  }
+
 
   if (
     APP_BOOTED &&
@@ -116,76 +210,117 @@ export async function navigate(rawPage, skipHashUpdate = false) {
     page = "opening-stock";
   }
 
+
   if (user && onboardingDone) {
+
     if (!PAGE_ACCESS[user.role]?.includes(page)) {
       page = "dashboard";
     }
   }
 
-  const renderer = PAGE_MAP[page] || renderDashboard;
+  
 
-  const content = document.querySelector(".main-content");
+
+  const renderer =
+    PAGE_MAP[page] || renderDashboard;
+
+
+  const content =
+    document.querySelector(".main-content");
+
 
   if (content) {
+
     content.classList.add("page-exit");
-    await new Promise(resolve => setTimeout(resolve, 140));
+
+    await new Promise(resolve =>
+      setTimeout(resolve, 140)
+    );
+
     content.classList.remove("page-exit");
   }
 
-  /* ✅ PASS CONTAINER */
+
   await renderer(app);
 
-  const newContent = document.querySelector(".main-content");
+
+  const newContent =
+    document.querySelector(".main-content");
+
 
   if (newContent) {
+
     newContent.classList.remove("page-enter");
+
     void newContent.offsetWidth;
+
     newContent.classList.add("page-enter");
   }
 
+
   attachNavEvents();
 
-  const { attachLayoutEvents } = await import("./components/Layout.js");
+
+  const { attachLayoutEvents } =
+    await import("./components/Layout.js");
+
   attachLayoutEvents();
 
+
   markActivePage(page);
+
 
   APP_BOOTED = true;
 }
 
+
 /* =========================================================
-   NAV CLICK HANDLERS
+   NAV EVENTS
 ========================================================= */
+
 let NAV_BOUND = false;
 
 export function attachNavEvents() {
 
   if (NAV_BOUND) return;
+
   NAV_BOUND = true;
 
   document.addEventListener("click", (e) => {
 
-    const menuBtn = e.target.closest("#menu-toggle");
+    const menuBtn =
+      e.target.closest("#menu-toggle");
+
     if (menuBtn) {
       document.body.classList.toggle("drawer-open");
       return;
     }
 
+
     if (document.body.classList.contains("drawer-open")) {
-      const insideDrawer = e.target.closest(".drawer-panel");
-      const clickedMenu = e.target.closest("#menu-toggle");
+
+      const insideDrawer =
+        e.target.closest(".drawer-panel");
+
+      const clickedMenu =
+        e.target.closest("#menu-toggle");
 
       if (!insideDrawer && !clickedMenu) {
         document.body.classList.remove("drawer-open");
       }
     }
 
-    const btn = e.target.closest("[data-page]");
+
+    const btn =
+      e.target.closest("[data-page]");
+
     if (!btn) return;
 
     e.preventDefault();
 
-    const page = btn.dataset.page;
+    const page =
+      btn.dataset.page;
+
     if (!page) return;
 
     document.body.classList.remove("drawer-open");
@@ -195,18 +330,16 @@ export function attachNavEvents() {
     }
   });
 }
+
+
 function markActivePage(page){
 
-  document.querySelectorAll("[data-page]").forEach(el=>{
-    el.classList.remove("active");
-  });
+  document.querySelectorAll("[data-page]")
+    .forEach(el => el.classList.remove("active"));
 
-  document.querySelectorAll(`[data-page="${page}"]`).forEach(el=>{
-    el.classList.add("active");
-  });
-
+  document.querySelectorAll(`[data-page="${page}"]`)
+    .forEach(el => el.classList.add("active"));
 }
-
 
 
 /* =========================================================
@@ -214,15 +347,22 @@ function markActivePage(page){
 ========================================================= */
 
 window.onhashchange = () => {
-  const page = location.hash.replace("#", "") || "dashboard";
-  navigate(page, true); // skip hash update
+
+  const page =
+    location.hash.replace("#", "") || "dashboard";
+
+  navigate(page, true);
 };
 
-/* =========================================
-   GLOBAL LANGUAGE RERENDER
- ========================================= */
 
- window.addEventListener("languageChanged", () => {
-   const currentHash = location.hash.slice(1) || "dashboard";
-   navigate(currentHash);
-  });
+/* =========================================================
+   LANGUAGE CHANGE
+========================================================= */
+
+window.addEventListener("languageChanged", () => {
+
+  const currentHash =
+    location.hash.slice(1) || "dashboard";
+
+  navigate(currentHash);
+});
