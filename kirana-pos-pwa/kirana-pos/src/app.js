@@ -15,6 +15,7 @@ import { getAllUsers, isOnboardingCompleted } from "./services/db";
 import { renderManageStaff } from "./pages/ManageStaff";
 import { renderStaffHistory } from "./pages/StaffHistory";
 import { renderShopSettings } from "./pages/ShopSettings";
+import { renderAuditLog } from "./pages/AuditLog";
 
 /* =========================================================
    INTERNAL STATE
@@ -38,6 +39,7 @@ const PAGE_MAP = {
   "staff-history": renderStaffHistory,
   "opening-stock": renderOpeningStock,
   "opening-stock-entry": renderOpeningStockEntry,
+  "audit-log": renderAuditLog,
   "shop-settings": renderShopSettings,
 };
 
@@ -47,7 +49,7 @@ const PAGE_MAP = {
 ========================================================= */
 
 const PAGE_ACCESS = {
-  owner: ["dashboard","add-sale","reports","credit","ledger","stock","manage-staff","staff-history","shop-settings"],
+  owner: ["dashboard","add-sale","reports","credit","ledger","stock","manage-staff","staff-history","audit-log","shop-settings"],
   manager: ["dashboard","add-sale","reports","credit","ledger","stock","staff-history"],
   cashier: ["dashboard","add-sale"]
 };

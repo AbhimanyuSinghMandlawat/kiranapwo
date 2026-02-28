@@ -6,6 +6,7 @@ import { changeStaffSalary, softDeleteStaff } from "../services/payroll";
 import { getCurrentUser } from "../auth/authService";
 import { logStaffAction } from "../services/staffHistory";
 import { navigate } from "../app";
+import { logAudit } from "../services/auditLog";
 
 
 
@@ -140,7 +141,7 @@ export async function renderManageStaff() {
       .map(b => b.toString(16).padStart(2, "0"))
       .join("");
 
-    await saveUser({
+    const newUser = {
       id: crypto.randomUUID(),
       name,
       username,
@@ -151,6 +152,19 @@ export async function renderManageStaff() {
       isActive: true,
       isDeleted: false,
       createdAt: Date.now()
+    };
+    await saveUser(newUser);
+
+    // ✅ Audit AFTER save success
+    await logAudit({
+      action: "STAFF_CREATED",
+      module: "staff",
+      targetId: newUser.id,
+      metadata: {
+        name: newUser.name,
+        role: newUser.role,
+        salary: newUser.baseSalary
+      } 
     });
 
     showToast("Staff created successfully", "success");
@@ -178,6 +192,16 @@ export async function renderManageStaff() {
       await changeStaffSalary(staff, newSalary, "Owner update", currentUser);
 
       await saveUser(staff);
+      await logAudit({
+        action: "STAFF_SALARY_CHANGED",
+        module: "staff",
+        targetId: staff.id, 
+        metadata: {
+          name: staff.name,
+          oldSalary: staff.baseSalary,
+          newSalary: newSalary
+        }
+      });
 
       showToast("Salary updated", "success");
 
@@ -199,6 +223,16 @@ export async function renderManageStaff() {
       staff.leftDate = new Date().toISOString().split("T")[0];
 
       await saveUser(staff);
+      await logAudit({
+        action: "STAFF_MARKED_LEFT",
+        module: "staff",
+        targetId: staff.id,
+        metadata: {
+          name: staff.name,
+          role: staff.role,
+          leftDate: staff.leftDate
+        }
+      });
 
       showToast("Staff marked as left", "success");
 
@@ -217,6 +251,17 @@ export async function renderManageStaff() {
       const staff = users.find(u => u.id === id);
 
       await softDeleteStaff(staff, currentUser);
+
+      // ✅ AUDIT LOG AFTER SUCCESSFUL DELETE
+      await logAudit({
+        action: "STAFF_DELETED",
+        module: "staff",
+        targetId: staff.id,
+        metadata: {
+          role: staff.role,
+          name: staff.name
+        }
+      });
 
       showToast("Staff deleted successfully", "success");
 

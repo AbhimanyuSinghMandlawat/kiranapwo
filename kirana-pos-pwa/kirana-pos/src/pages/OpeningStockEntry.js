@@ -26,7 +26,7 @@ export async function renderOpeningStockEntry(container) {
       </table>
 
       <div class="table-actions">
-        <button class="btn-secondary" id="add-row">+ Add Row</button>
+        <button id="add-row" class="btn-outline">+ Add Row</button>
         <button class="btn-primary" id="save-opening">Save Opening Inventory</button>
       </div>
 

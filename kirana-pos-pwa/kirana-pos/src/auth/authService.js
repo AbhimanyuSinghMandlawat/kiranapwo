@@ -7,6 +7,7 @@ import {
 } from "../services/db";
 
 import { ROLES } from "./roles";
+import { logAudit } from "../services/auditLog";
 
 // Simple hashing (can be upgraded later)
 async function hashPassword(password) {
@@ -61,6 +62,11 @@ export async function login(username, password) {
 
     },
     loginTime: Date.now()
+  });
+  await logAudit({
+    action: "USER_LOGIN",
+    module: "auth",
+    metadata: { username }
   });
 
   return user;

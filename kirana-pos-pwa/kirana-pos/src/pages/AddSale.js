@@ -6,6 +6,7 @@ import { searchStock } from "../utils/helpers";
 import { buildFinancialEvent } from "../services/financialEvent";
 import { evaluateCreditDecision } from "../services/creditAdvisor";
 import { t } from "../i18n/i18n";
+import { logAudit } from "../services/auditLog";
 
 import {
   ACCOUNT_TYPE,
@@ -453,8 +454,18 @@ export async function renderAddSale(container) {
       else
         await saveSale(sale);
     }
+    await logAudit({
+      action: "SALE_CREATED",
+      module: "sales",
+      targetId: sale.id,
+      metadata: {
+        amount: sale.amount,
+        paymentMethod: sale.paymentMethod,
+        customer: sale.customerName || null
+      }
+    });
 
     showToast("Transaction saved", "success");
-    navigate("dashboard");
+    navigate("dashboard"); 
   };
 }

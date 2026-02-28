@@ -1,7 +1,7 @@
 import { logStaffAction } from "./staffHistory";
 import { getCurrentUser } from "../auth/authService";
 const DB_NAME = "kirana_pos_db";
-const DB_VERSION = 14;     // only change: increased version
+const DB_VERSION = 16;     // only change: increased version
 
 const SALES_STORE = "sales";
 const STOCK_STORE = "stocks";
@@ -70,6 +70,13 @@ export function openDB() {
       if (!db.objectStoreNames.contains(SALARY_HISTORY_STORE)) {
         const s = db.createObjectStore(SALARY_HISTORY_STORE, { keyPath: "historyId" });
         s.createIndex("staffId", "staffId");
+      }
+
+      if (!db.objectStoreNames.contains("audit_logs")) {
+        const store = db.createObjectStore("audit_logs", { keyPath: "id" });
+        store.createIndex("timestamp", "timestamp",{ unique: false });
+        store.createIndex("actorId", "actorId",{ unique: false });
+        store.createIndex("module", "module",{ unique: false });
       }
     };
 
