@@ -453,6 +453,19 @@ export async function renderAddSale(container) {
         await processSale(sale);
       else
         await saveSale(sale);
+
+      const { updateCustomerLoyalty } = 
+        await import("../services/loyaltyEngine.js");
+      await updateCustomerLoyalty(
+        sale.customerName,
+        sale.amount
+      );
+      const { evaluateAutoCoupon } = 
+       await import("../services/autoCouponEngine.js")
+      await evaluateAutoCoupon(
+        sale.customerName,
+        sale.amount
+      );
     }
     await logAudit({
       action: "SALE_CREATED",

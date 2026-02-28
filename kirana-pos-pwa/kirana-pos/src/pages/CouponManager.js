@@ -86,17 +86,14 @@ export async function renderCouponManager() {
 
       id: crypto.randomUUID(),
 
-      title: document.getElementById("coupon-title").value,
+      shopId: CURRENT_SHOP_ID,
 
-      code: document.getElementById("coupon-code").value,
-
-      value: Number(document.getElementById("coupon-value").value),
-
-      minPurchase: Number(document.getElementById("coupon-min").value),
-
-      loyaltyRequired: document.getElementById("coupon-loyalty").value,
-
-      expiryDate: document.getElementById("coupon-expiry").value,
+      title,
+      code,
+      value,
+      minPurchase,
+      loyaltyRequired,
+      expiryDate,
 
       active: true,
 

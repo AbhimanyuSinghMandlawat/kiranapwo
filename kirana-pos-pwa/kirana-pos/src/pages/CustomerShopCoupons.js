@@ -109,6 +109,5 @@ export async function renderCustomerShopCoupons(container) {
 
     </section>
   `;
-  container.innerHTML = content;
 }
 

@@ -6,32 +6,34 @@ const STORE = "customer_shops";
 /**
  * Link customer to shop (create relation)
  */
-export async function linkCustomerToShop({
-  customerId,
-  shopId
-}) {
+export async function linkCustomerToShop(customerName, shopId){
 
   const db = await openDB();
 
-  const tx = db.transaction(STORE, "readwrite");
+  const tx =
+    db.transaction("customer_shops", "readwrite");
 
-  const store = tx.objectStore(STORE);
+  const store =
+    tx.objectStore("customer_shops");
 
-  const relation = {
-    id: crypto.randomUUID(),
-    customerId,
+  const id =
+    customerName + "_" + shopId;
+
+  const existing =
+    await store.get(id);
+
+  if(existing) return;
+
+  await store.put({
+
+    id,
+    customerName,
     shopId,
-    totalSpent: 0,
-    visitCount: 0,
-    loyaltyLevel: "bronze",
-    createdAt: Date.now()
-  };
+    joinedAt: Date.now()
 
-  store.put(relation);
+  });
 
-  return tx.complete;
 }
-
 
 /**
  * Get all shops linked to a customer

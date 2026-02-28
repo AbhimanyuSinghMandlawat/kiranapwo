@@ -1,7 +1,7 @@
 import { logStaffAction } from "./staffHistory";
 import { getCurrentUser } from "../auth/authService";
 const DB_NAME = "kirana_pos_db";
-const DB_VERSION = 21;     // only change: increased version
+const DB_VERSION = 30;     // only change: increased version
 
 const SALES_STORE = "sales";
 const STOCK_STORE = "stocks";
@@ -101,6 +101,16 @@ export function openDB() {
         const store = db.createObjectStore("customer_shops", { keyPath: "id" });
         store.createIndex("customerId", "customerId");
         store.createIndex("shopId", "shopId");
+      }
+      if (!db.objectStoreNames.contains("customer_profiles")) {
+
+        const store = 
+          db.createObjectStore("customer_profile", {
+            keyPath: "customer"
+          });
+        store.createIndex("loyaltyLevel","loyaltyLevel");
+
+        store.createIndex("lifetimeSpend","lifetimeSpend");
       }
     };
 

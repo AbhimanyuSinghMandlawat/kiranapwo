@@ -1,5 +1,5 @@
 import { openDB } from "./db";
-import { buildCustomerLoyaltyProfiles } from "./loyaltyEngine";
+import { getCustomerLoyalty } from "./loyaltyEngine";
 
 export async function createCoupon(coupon) {
   const db = await openDB();
@@ -43,37 +43,54 @@ export async function toggleCoupon(id, active) {
 
   await store.put(coupon);
 }
-export async function getEligibleCoupons(customerName) {
+export async function getEligibleCoupons(customerName, shopId) {
 
-  const profiles = await buildCustomerLoyaltyProfiles();
-  const coupons = await getAllCoupons();
+  const db = await openDB();
 
-  const profile = profiles[customerName.toLowerCase()];
+  const tx =
+    db.transaction("coupons", "readonly");
 
-  if (!profile) return [];
+  const store =
+    tx.objectStore("coupons");
+
+  const coupons =
+    await store.getAll();
+
+  const loyalty =
+    await getCustomerLoyalty(customerName);
 
   return coupons.filter(coupon => {
 
-    if (!coupon.active) return false;
+    if (!coupon.active)
+      return false;
 
-    const required = coupon.loyaltyRequired;
+    if (coupon.shopId && coupon.shopId !== shopId)
+      return false;
 
-    return loyaltyRank(profile.loyaltyLevel)
-         >= loyaltyRank(required);
+    if (new Date(coupon.expiryDate) < new Date())
+      return false;
+
+    if (
+      loyaltyRank(loyalty)
+      <
+      loyaltyRank(coupon.loyaltyRequired)
+    )
+      return false;
+
+    return true;
+
   });
+
 }
 
 
 function loyaltyRank(level) {
 
-  const rank = {
-
+  return {
     bronze: 1,
     silver: 2,
     gold: 3,
     platinum: 4
+  }[level] || 1;
 
-  };
-
-  return rank[level] || 0;
 }

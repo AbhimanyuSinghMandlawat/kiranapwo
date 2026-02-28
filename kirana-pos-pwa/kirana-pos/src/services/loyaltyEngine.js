@@ -1,5 +1,5 @@
 import { computeCustomerAccounts } from "./accountingEngine";
-import { getAllSales } from "./db";
+import { getAllSales,openDB } from "./db";
 
 export async function buildCustomerLoyaltyProfiles() {
 
@@ -50,16 +50,94 @@ export async function buildCustomerLoyaltyProfiles() {
 }
 
 
-export function calculateLoyaltyLevel(profile) {
+const LOYALTY_LEVELS = [
+  { level: "platinum", min: 50000 },
+  { level: "gold", min: 15000 },
+  { level: "silver", min: 5000 },
+  { level: "bronze", min: 0 }
+];
 
-  if (profile.totalSpent >= 50000 && profile.visitCount >= 200)
-    return "platinum";
 
-  if (profile.totalSpent >= 20000 && profile.visitCount >= 80)
-    return "gold";
+/* ================================
+   MAIN ENTRY POINT
+================================ */
 
-  if (profile.totalSpent >= 5000 && profile.visitCount >= 20)
-    return "silver";
+export async function updateCustomerLoyalty(customerName, amount) {
+
+  if (!customerName || amount <= 0) return;
+
+  const db = await openDB();
+
+  const tx =
+    db.transaction("customer_profiles", "readwrite");
+
+  const store =
+    tx.objectStore("customer_profiles");
+
+  let profile =
+    await store.get(customerName);
+
+  if (!profile) {
+
+    profile = {
+      customer: customerName,
+      lifetimeSpend: 0,
+      visitCount: 0,
+      loyaltyLevel: "bronze",
+      lastUpdated: Date.now()
+    };
+
+  }
+
+  profile.lifetimeSpend += amount;
+
+  profile.visitCount += 1;
+
+  profile.loyaltyLevel =
+    calculateLoyaltyLevel(profile.lifetimeSpend);
+
+  profile.lastUpdated = Date.now();
+
+  await store.put(profile);
+
+}
+
+
+/* ================================
+   LOYALTY CALCULATION
+================================ */
+
+function calculateLoyaltyLevel(spend) {
+
+  for (const tier of LOYALTY_LEVELS) {
+
+    if (spend >= tier.min)
+      return tier.level;
+
+  }
 
   return "bronze";
+
+}
+
+
+/* ================================
+   GET CUSTOMER LOYALTY
+================================ */
+
+export async function getCustomerLoyalty(customerName) {
+
+  const db = await openDB();
+
+  const tx =
+    db.transaction("customer_profiles", "readonly");
+
+  const store =
+    tx.objectStore("customer_profiles");
+
+  const profile =
+    await store.get(customerName);
+
+  return profile?.loyaltyLevel || "bronze";
+
 }
