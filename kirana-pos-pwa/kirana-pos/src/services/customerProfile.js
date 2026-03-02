@@ -74,29 +74,52 @@ function analyzeCustomer(transactions) {
 
     visitDays.add(new Date(tx.timestamp).toDateString());
 
+    /* COUNT ALL ITEM SALES AS LIFETIME VALUE */
+
+    if (tx.accountType === "ITEM_SALE") {
+
+      lifetimeValue += tx.amount;
+
+      totalPurchases++;
+
+    }
+
+    /* HANDLE CREDIT LIABILITY SEPARATELY */
+
     switch(tx.liabilityEffect) {
 
       case LIABILITY_EFFECT.INCREASE_GOODS_DUE:
+
         goodsDue += tx.amount;
-        lifetimeValue += tx.amount;
-        totalPurchases++;
+
         creditPurchases++;
 
         if (cycleStart === null)
           cycleStart = tx.timestamp;
+
         break;
 
       case LIABILITY_EFFECT.DECREASE_GOODS_DUE:
+
         goodsDue -= tx.amount;
 
         if (goodsDue <= 0 && cycleStart !== null) {
-          const days = (tx.timestamp - cycleStart)/(1000*60*60*24);
+
+          const days =
+            (tx.timestamp - cycleStart)/(1000*60*60*24);
+
           cycles.push(days);
+
           if (days > 7) lateCycles++;
+
           cycleStart = null;
+
           goodsDue = 0;
+
         }
+
         break;
+
     }
   }
 

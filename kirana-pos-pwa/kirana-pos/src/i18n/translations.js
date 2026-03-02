@@ -51,6 +51,7 @@ export const translations = {
         paymentMethod: "Payment Method",
         customerName: "Customer Name",
         enterCustomer: "Enter customer name",
+        enterMobileNumber: "Enter Mobile Number",
         save: "Save",
 
         cash: "Cash",

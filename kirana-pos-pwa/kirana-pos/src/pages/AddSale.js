@@ -94,7 +94,10 @@ export async function renderAddSale(container) {
 
           <label>Customer Name</label>
           <input id="customer" type="text" placeholder="${t("addSale.enterCustomer")}" />
+          <label>Customer Mobile Number</label>
+          <input id = "customer-phone" type="tel" placeholder="${t("addSale.enterMobileNumber")}" />
           <div id="credit-advice" class="credit-advice hidden"></div>
+
 
 
           <button class="btn-primary full-width" type="submit">${t("addSale.save")}</button>
@@ -285,6 +288,23 @@ export async function renderAddSale(container) {
     const customerName =
       document.getElementById("customer").value.trim() || null;
 
+    const customerPhone =
+      document.getElementById("customer-phone")?.value.trim() || null;
+
+    /*==================================
+      Custmore identity
+    ====================================*/
+    let customer = null;
+
+    if ( customerName ) {
+      const { resolveCustomerIdentity } =
+        await import("../services/customerIdentityService.js");
+      customer = await resolveCustomerIdentity({
+        name: customerName,
+        phone: customerPhone
+      });
+    }
+
     if (isSettlement && !customerName) {
       showToast(t("addSale.customerRequired"), "error");
       return;
@@ -383,6 +403,9 @@ export async function renderAddSale(container) {
 
       showToast("Settlement recorded", "success");
       navigate("dashboard");
+      setTimeout(() => {
+       window.dispatchEvent(new Event("saleUpdated"));
+      },50);
       return;
     }
 
@@ -393,6 +416,7 @@ export async function renderAddSale(container) {
     let referenceSource = selectedPayment;
 
     if (saleMode === "items") {
+      accountType = ACCOUNT_TYPE.ITEM_SALE;
       stockEffect = STOCK_EFFECT.OUT;
       if (selectedPayment === "credit")
         liabilityEffect = LIABILITY_EFFECT.INCREASE_GOODS_DUE;
@@ -425,7 +449,8 @@ export async function renderAddSale(container) {
        moneyDirection,
        stockEffect,
        liabilityEffect,
-       customerName,
+       customerId: customer?.id || null,
+       customerName: customer?.displayName || customerName,
        transactionType: "sale",
        financialEvent: buildFinancialEvent({
          accountType,
@@ -456,16 +481,20 @@ export async function renderAddSale(container) {
 
       const { updateCustomerLoyalty } = 
         await import("../services/loyaltyEngine.js");
-      await updateCustomerLoyalty(
-        sale.customerName,
-        sale.amount
-      );
+      if(customer?.id) {
+        await updateCustomerLoyalty(
+          customer.id,
+          sale.amount
+        );
+      }
       const { evaluateAutoCoupon } = 
        await import("../services/autoCouponEngine.js")
-      await evaluateAutoCoupon(
-        sale.customerName,
-        sale.amount
-      );
+      if(customer?.id) {
+        await evaluateAutoCoupon (
+          customer.id,
+          sale.amount
+        );
+      }
     }
     await logAudit({
       action: "SALE_CREATED",
@@ -480,5 +509,8 @@ export async function renderAddSale(container) {
 
     showToast("Transaction saved", "success");
     navigate("dashboard"); 
+    setTimeout(() => {
+      window.dispatchEvent(new Event("saleUpdated"));
+    },50);
   };
 }

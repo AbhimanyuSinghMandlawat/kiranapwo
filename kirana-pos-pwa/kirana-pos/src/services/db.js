@@ -105,7 +105,7 @@ export function openDB() {
       if (!db.objectStoreNames.contains("customer_profiles")) {
 
         const store = 
-          db.createObjectStore("customer_profile", {
+          db.createObjectStore("customer_profiles", {
             keyPath: "customer"
           });
         store.createIndex("loyaltyLevel","loyaltyLevel");
