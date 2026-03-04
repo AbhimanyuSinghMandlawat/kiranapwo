@@ -139,11 +139,13 @@ export async function navigate(rawPage, skipHashUpdate = false) {
 
     const customer = await getCurrentCustomer();
 
+    console.log("CURRENT CUSTOMER:", customer);
+
     const { renderCustomerLayout } =
       await import("./components/CustomerLayout.js");
 
     app.innerHTML =
-      renderCustomerLayout(customer.name);
+      renderCustomerLayout(customer?.displayName || "Customer");
 
     const container =
       document.getElementById("customer-content");

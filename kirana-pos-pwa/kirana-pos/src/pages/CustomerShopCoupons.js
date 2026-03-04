@@ -17,7 +17,16 @@ export async function renderCustomerShopCoupons(container) {
 
   const shopId = params.get("shop");
 
-  const shops = await getAllShops();
+  const { getCustomerShops } =
+    await import("../services/customerShopService.js");
+
+  const links = await getCustomerShops(session.id);
+
+  const shopIds = links.map(l => l.shopId);
+
+  const allShops = await getAllShops();
+
+  const shops = allShops.filter(s => shopIds.includes(s.id));
 
   /* SHOW SHOP LIST FIRST */
   if (!shopId) {
@@ -69,10 +78,14 @@ export async function renderCustomerShopCoupons(container) {
 
   const shop =
     shops.find(s => s.id === shopId);
+  if (!shop) {
+    container.innerHTML = "<p>Shop not found</p>";
+    return;
+  }
 
   const coupons =
     await getEligibleCoupons(
-      session.name,
+      session.id,
       shopId
     );
 
@@ -84,22 +97,24 @@ export async function renderCustomerShopCoupons(container) {
       <div class="coupon-grid">
 
         ${coupons.map(c => `
-          <div class="glass-card coupon-card">
+          <div class="coupon-card premium ${c.loyaltyRequired || 'bronze'}">
 
-            <div class="coupon-header">
-              ${c.code}
+            <div class="coupon-top">
+              <span class="coupon-badge">
+                ${(c.loyaltyRequired || "bronze").toUpperCase()}
+              </span>
+              <span class="coupon-expiry">
+                Expires ${new Date(c.expiryDate).toLocaleDateString()}
+              </span>
             </div>
 
-            <div class="coupon-body">
+            <div class="coupon-main">
+              <h2>${c.value}% OFF</h2>
+              <p>Min Purchase ₹${c.minPurchase}</p>
+            </div>
 
-              ${c.value}% OFF<br>
-
-              Min ₹${c.minPurchase}<br>
-
-              Expires:
-              ${new Date(c.expiryDate)
-                .toLocaleDateString()}
-
+            <div class="coupon-code">
+              ${c.code}
             </div>
 
           </div>

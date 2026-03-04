@@ -45,11 +45,20 @@ export async function updateCustomerLoyalty(customerId, amount) {
 export async function getCustomerLoyalty(customerId) {
 
   const db = await openDB();
-  const tx = db.transaction("customers", "readonly");
-  const store = tx.objectStore("customers");
 
-  const customer = await store.get(customerId);
-  return customer?.loyaltyLevel || "bronze";
+  return new Promise((resolve) => {
+
+    const tx = db.transaction("customers", "readonly");
+    const store = tx.objectStore("customers");
+
+    const req = store.get(customerId);
+
+    req.onsuccess = () => {
+      resolve(req.result?.loyaltyLevel || "bronze");
+    };
+
+    req.onerror = () => resolve("bronze");
+  });
 }
 
 function calculateLoyaltyLevel(spend) {

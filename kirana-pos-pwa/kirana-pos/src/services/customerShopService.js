@@ -2,37 +2,44 @@ import { openDB } from "./db";
 
 const STORE = "customer_shops";
 
-
 /**
- * Link customer to shop (create relation)
+ * Link customer to shop
  */
-export async function linkCustomerToShop(customerName, shopId){
+export async function linkCustomerToShop(customerId, shopId) {
+
+  if (!customerId || !shopId) return;
 
   const db = await openDB();
 
-  const tx =
-    db.transaction("customer_shops", "readwrite");
+  return new Promise((resolve, reject) => {
 
-  const store =
-    tx.objectStore("customer_shops");
+    const tx = db.transaction(STORE, "readwrite");
+    const store = tx.objectStore(STORE);
 
-  const id =
-    customerName + "_" + shopId;
+    const id = customerId + "_" + shopId;
 
-  const existing =
-    await store.get(id);
+    const req = store.get(id);
 
-  if(existing) return;
+    req.onsuccess = () => {
 
-  await store.put({
+      if (req.result) {
+        resolve(false);
+        return;
+      }
 
-    id,
-    customerName,
-    shopId,
-    joinedAt: Date.now()
+      store.put({
+        id,
+        customerId,
+        shopId,
+        totalSpent: 0,
+        visitCount: 0,
+        joinedAt: Date.now()
+      });
+    };
 
+    tx.oncomplete = () => resolve(true);
+    tx.onerror = () => reject(tx.error);
   });
-
 }
 
 /**
@@ -42,81 +49,53 @@ export async function getCustomerShops(customerId) {
 
   const db = await openDB();
 
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
 
-    try {
-
-      const tx = db.transaction(STORE, "readonly");
-
-      const store = tx.objectStore(STORE);
-
-      const index = store.index("customerId");
-
-      const req = index.getAll(customerId);
-
-      req.onsuccess = () => {
-
-        resolve(req.result || []);
-
-      };
-
-      req.onerror = () => {
-
-        console.error("Failed to fetch customer shops");
-
-        resolve([]);
-
-      };
-
-    } catch (err) {
-
-      console.error("Transaction failed:", err);
-
-      resolve([]);
-
-    }
-
-  });
-
-}
-
-
-/**
- * Update loyalty stats (future safe)
- */
-export async function updateCustomerShopStats({
-  customerId,
-  shopId,
-  amount
-}) {
-
-  const db = await openDB();
-
-  const tx = db.transaction(STORE, "readwrite");
-
-  const store = tx.objectStore(STORE);
-
-  const index = store.index("customerId");
-
-  const relations = await new Promise(resolve => {
+    const tx = db.transaction(STORE, "readonly");
+    const store = tx.objectStore(STORE);
+    const index = store.index("customerId");
 
     const req = index.getAll(customerId);
 
     req.onsuccess = () => resolve(req.result || []);
-
     req.onerror = () => resolve([]);
-
   });
+}
 
-  const relation = relations.find(r => r.shopId === shopId);
+/**
+ * Update shop stats safely
+ */
+export async function updateCustomerShopStats({ customerId, shopId, amount }) {
 
-  if (!relation) return;
+  if (!customerId || !shopId || !amount) return;
 
-  relation.totalSpent += amount;
+  const db = await openDB();
 
-  relation.visitCount += 1;
+  return new Promise((resolve, reject) => {
 
-  store.put(relation);
+    const tx = db.transaction(STORE, "readwrite");
+    const store = tx.objectStore(STORE);
 
-  return tx.complete;
+    const id = customerId + "_" + shopId;
+
+    const req = store.get(id);
+
+    req.onsuccess = () => {
+
+      const relation = req.result;
+
+      if (!relation) {
+        resolve(false);
+        return;
+      }
+
+      relation.totalSpent = (relation.totalSpent || 0) + amount;
+      relation.visitCount = (relation.visitCount || 0) + 1;
+
+      store.put(relation);
+    };
+
+    tx.oncomplete = () => resolve(true);
+    tx.onerror = () => reject(tx.error);
+  });
 }

@@ -495,6 +495,27 @@ export async function renderAddSale(container) {
           sale.amount
         );
       }
+
+      const { linkCustomerToShop, updateCustomerShopStats } =
+        await import("../services/customerShopService.js");
+
+      const { getCustomerLoyalty } =
+        await import("../services/loyaltyEngine.js");
+
+      const shopSettings = await getShopSettings();
+      const shopId = shopSettings?.shopId;
+
+      if (customer?.id && shopId) {
+
+        await linkCustomerToShop(customer.id, shopId);
+
+        await updateCustomerShopStats({
+          customerId: customer.id,
+          shopId,
+          amount: sale.amount
+        });
+
+      }
     }
     await logAudit({
       action: "SALE_CREATED",

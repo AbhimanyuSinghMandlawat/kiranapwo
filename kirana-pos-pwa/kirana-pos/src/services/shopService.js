@@ -8,7 +8,9 @@ export async function createShop(shop) {
 
   tx.objectStore("shops").put(shop);
 
-  return tx.complete;
+  return new Promise(resolve => {
+    tx.oncomplete = resolve;
+  });
 }
 
 export async function getAllShops() {

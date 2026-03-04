@@ -1,4 +1,11 @@
-import { insertOpeningStock, isOnboardingCompleted } from "../services/db";
+import { 
+  insertOpeningStock, 
+  isOnboardingCompleted,
+  saveShopSettings,
+  getShopSettings
+} from "../services/db";
+
+import { createShop } from "../services/shopService";
 
 export async function renderOpeningStockEntry(container) {
 
@@ -163,6 +170,28 @@ export async function renderOpeningStockEntry(container) {
 
     /* Save to DB */
     await insertOpeningStock(items);
+
+    /* ===============================
+      CREATE DEFAULT SHOP (ONE TIME)
+    ================================= */
+
+    const existingSettings = await getShopSettings();
+
+    if (!existingSettings?.shopId) {
+
+      const shopId = crypto.randomUUID();
+
+      await createShop({
+        id: shopId,
+        name: "Main Shop",
+        createdAt: Date.now()
+      });
+
+      await saveShopSettings({
+        shopId
+      });
+
+    }
 
     /* Wait for IndexedDB commit (important) */
     let ready = false;

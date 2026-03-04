@@ -34,55 +34,72 @@ export async function toggleCoupon(id, active) {
 
   const db = await openDB();
 
-  const tx = db.transaction("coupons", "readwrite");
-  const store = tx.objectStore("coupons");
+  return new Promise((resolve, reject) => {
 
-  const coupon = await store.get(id);
+    const tx = db.transaction("coupons", "readwrite");
+    const store = tx.objectStore("coupons");
 
-  coupon.active = active;
+    const req = store.get(id);
 
-  await store.put(coupon);
+    req.onsuccess = () => {
+      const coupon = req.result;
+      if (!coupon) {
+        resolve(false);
+        return;
+      }
+
+      coupon.active = active;
+      store.put(coupon);
+    };
+
+    tx.oncomplete = () => resolve(true);
+    tx.onerror = () => reject(tx.error);
+  });
 }
-export async function getEligibleCoupons(customerName, shopId) {
+export async function getEligibleCoupons(customerId, shopId) {
 
   const db = await openDB();
 
-  const tx =
-    db.transaction("coupons", "readonly");
+  return new Promise((resolve, reject) => {
 
-  const store =
-    tx.objectStore("coupons");
+    const tx = db.transaction("coupons", "readonly");
+    const store = tx.objectStore("coupons");
 
-  const coupons =
-    await store.getAll();
+    const request = store.getAll();
 
-  const loyalty =
-    await getCustomerLoyalty(customerName);
+    request.onsuccess = async () => {
 
-  return coupons.filter(coupon => {
+      const coupons = request.result || [];
 
-    if (!coupon.active)
-      return false;
+      const loyalty = await getCustomerLoyalty(customerId);
 
-    if (coupon.shopId && coupon.shopId !== shopId)
-      return false;
+      const filtered = coupons.filter(coupon => {
 
-    if (new Date(coupon.expiryDate) < new Date())
-      return false;
+        if (!coupon.active)
+          return false;
 
-    if (
-      loyaltyRank(loyalty)
-      <
-      loyaltyRank(coupon.loyaltyRequired)
-    )
-      return false;
+        if (coupon.shopId && coupon.shopId !== shopId)
+          return false;
 
-    return true;
+        if (new Date(coupon.expiryDate) < new Date())
+          return false;
+
+        if (
+          loyaltyRank(loyalty) <
+          loyaltyRank(coupon.loyaltyRequired)
+        )
+          return false;
+
+        return true;
+      });
+
+      resolve(filtered);
+    };
+
+    request.onerror = () => reject(request.error);
 
   });
-
 }
-
 
 function loyaltyRank(level) {
 
