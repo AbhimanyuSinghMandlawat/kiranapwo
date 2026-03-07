@@ -1,5 +1,6 @@
 import { logStaffAction } from "./staffHistory";
 import { getCurrentUser } from "../auth/authService";
+import { queueSync } from "./syncService";
 const DB_NAME = "kirana_pos_db";
 const DB_VERSION = 30;     // only change: increased version
 
@@ -112,6 +113,14 @@ export function openDB() {
 
         store.createIndex("lifetimeSpend","lifetimeSpend");
       }
+
+      /* ===== SYNC QUEUE STORE ===== */
+
+      if (!db.objectStoreNames.contains("sync_queue")) {
+        const q = db.createObjectStore("sync_queue", { keyPath: "id" });
+        q.createIndex("synced","synced");
+        q.createIndex("type","type");
+      }
     };
 
     req.onsuccess = e => {
@@ -160,6 +169,7 @@ export async function saveSale(sale) {
           customer: sale.customerName || "Walk-in"
         }
       });
+      await queueSync("sale", sale);
 
       resolve();
     };

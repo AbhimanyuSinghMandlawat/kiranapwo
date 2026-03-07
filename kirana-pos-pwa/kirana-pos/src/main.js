@@ -5,6 +5,7 @@ import { getNetworkStatus } from "./utils/network";
 import { updateSyncStatus } from "./utils/syncStatus";
 import "./styles/theme.css";
 import "./styles/pages/openingStock.css";
+import { syncPending } from "./services/syncService";
 
 
 
@@ -26,15 +27,26 @@ function handleNetworkChange() {
   }
 
   if (!navigator.onLine) {
+
     updateSyncStatus("offline");
+
   } else {
+
     updateSyncStatus("syncing");
 
+    // 🔵 RUN SYNC ENGINE
+    syncPending();
+
     setTimeout(() => {
+
       const time = new Date().toLocaleTimeString();
+
       localStorage.setItem("lastSyncTime", time);
+
       updateSyncStatus("synced", time);
+
     }, 1000);
+
   }
 
 }
