@@ -1,4 +1,4 @@
-import { openDB } from "./db";
+import { openDB, getSession } from "./db";
 
 const API_BASE = "http://localhost:5000";
 
@@ -56,6 +56,15 @@ export async function syncPending(){
 
 async function sendToServer(item){
 
+  const session = await getSession();
+
+  if(!session || !session.token){
+    console.warn("No auth token available for sync");
+    return;
+  }
+
+  const token = session.token;
+
   const endpointMap = {
     sale:"/api/sales",
     customer:"/api/customers",
@@ -70,7 +79,8 @@ async function sendToServer(item){
   await fetch(API_BASE + endpoint,{
     method:"POST",
     headers:{
-      "Content-Type":"application/json"
+      "Content-Type":"application/json",
+      "Authorization": `Bearer ${token}`
     },
     body:JSON.stringify(item.payload)
   });
