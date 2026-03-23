@@ -22,14 +22,29 @@ export async function createCustomerAccount({ name, phone, password }) {
 
       if (existing) {
 
-        // UPDATE existing customer
-        existing.password = password;
-        existing.displayName = name;
-        existing.updatedAt = Date.now();
+        // UPDATE existing customer — customer's name always wins
+        existing.password    = password;
+        existing.displayName = name.trim();
+        existing.updatedAt   = Date.now();
 
         store.put(existing);
 
-        tx.oncomplete = () => resolve(existing);
+        // Refresh session if this customer is currently logged in
+        tx.oncomplete = () => {
+          try {
+            const activeSession = sessionStorage.getItem(SESSION_KEY);
+            if (activeSession) {
+              const parsed = JSON.parse(activeSession);
+              if (parsed?.id === existing.id) {
+                sessionStorage.setItem(SESSION_KEY, JSON.stringify({
+                  ...parsed,
+                  displayName: existing.displayName
+                }));
+              }
+            }
+          } catch (_) {}
+          resolve(existing);
+        };
         tx.onerror = () => reject(tx.error);
 
         return;
@@ -105,9 +120,9 @@ export async function loginCustomer(phone, password) {
   sessionStorage.setItem(
     SESSION_KEY,
     JSON.stringify({
-      id: customer.id,
-      name: customer.name,
-      phone: customer.phone
+      id:          customer.id,
+      displayName: customer.displayName,
+      phone:       customer.phone
     })
   );
 

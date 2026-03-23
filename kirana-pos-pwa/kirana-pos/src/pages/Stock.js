@@ -39,7 +39,16 @@ export async function renderStock() {
 
   const content = `
     <section class="dashboard">
-      <h1>Manage Stock</h1>
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:8px">
+        <h1 style="margin:0">Manage Stock</h1>
+        <button
+          id="open-bill-scanner"
+          class="btn-primary"
+          style="display:flex;align-items:center;gap:8px;padding:10px 18px;font-size:14px;border-radius:12px"
+        >
+          📷 Auto-Upload Bill
+        </button>
+      </div>
 
       <div class="card">
         <h3>Add New Item</h3>
@@ -61,6 +70,11 @@ export async function renderStock() {
   `;
 
   document.querySelector(".main-content").innerHTML = content;
+
+  /* Bill Scanner shortcut */
+  document.getElementById("open-bill-scanner")?.addEventListener("click", () => {
+    location.hash = "bill-scanner";
+  });
   
 
   /* ADD ITEM */
@@ -125,7 +139,7 @@ export async function renderStock() {
           });
 
 
-          await renderStock(container);
+          await renderStock();
           showToast("Stock updated", "success");
         }
       });
@@ -163,7 +177,7 @@ export async function renderStock() {
         message: `Delete "${item.name}"?`,
         onConfirm: async () => {
           await removeStockItem(item.id);
-          await renderStock(container);
+          await renderStock();
           showToast("Item removed", "warning");
         }
       });

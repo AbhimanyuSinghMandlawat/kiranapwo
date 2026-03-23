@@ -11,32 +11,6 @@ import { t } from "../i18n/i18n";
 
 export async function renderDashboard() {
   const sales = await getAllSales();
-  console.group("=== DASHBOARD ACCOUNTING AUDIT ===");
-
-  console.table(sales.map(s => ({
-   customer: s.customerName || "_",
-   type: s.accountType || "_",
-   payment: s.paymentMethod || "_",
-   amount: s.amount ?? 0,
-   date: s.date || "_"
-  })));
-
-  const itemSalesDebug = sales.filter(s => s.accountType === "ITEM_SALE");
-
-  console.log("ITEM SALES ONLY:", itemSalesDebug);
-  console.log("TOTAL REVENUE (GOODS SOLD):",
-   itemSalesDebug.reduce((t, x) => t + x.amount, 0)
-  );
-
-  console.log("CREDIT SALES:",
-    itemSalesDebug
-      .filter(s => s.paymentMethod === "credit")
-      .reduce((t, x) => t + x.amount, 0)
-  );
-
-  console.log("TRANSACTION COUNT:", itemSalesDebug.length);
-
-  console.groupEnd();
 
   /*==============================
       True Business Metrics

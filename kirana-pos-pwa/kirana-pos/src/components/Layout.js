@@ -53,6 +53,7 @@ export async function renderLayout(contentHtml) {
           ${isOwner ? `<a href="#" data-page="manage-staff">${t("sidebar.manageStaff")}</a>` : ""}
           ${isOwner ? `<a href="#" data-page="audit-log">${t("sidebar.auditLog")}</a>` : ""}
           ${isOwner ? `<a href="#" data-page="shop-settings">${t("sidebar.shopSettings")}</a>` : ""}
+          ${isOwner ? `<a href="#" data-page="coupon-manager">🎟️ Coupons</a>` : ""}
           
 
           <a href="#" data-page="logout">${t("sidebar.logout")}</a>
@@ -79,6 +80,7 @@ export async function renderLayout(contentHtml) {
         ${isOwner ? `<a href="#" data-page="manage-staff">${t("sidebar.manageStaff")}</a>` : ""}
         ${isOwner ? `<a href="#" data-page="audit-log">${t("sidebar.auditLog")}</a>` : ""}
         ${isOwner ? `<a href="#" data-page="shop-settings">${t("sidebar.shopSettings")}</a>` : ""}
+        ${isOwner ? `<a href="#" data-page="coupon-manager">🎟️ Coupons</a>` : ""}
         
 
         <a href="#" data-page="logout">${t("sidebar.logout")}</a>

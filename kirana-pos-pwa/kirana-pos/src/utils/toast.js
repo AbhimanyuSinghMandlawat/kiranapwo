@@ -1,8 +1,5 @@
 let toastContainer = null;
 
-/* ===============================
-   ENSURE CONTAINER EXISTS
-=============================== */
 function ensureToastContainer() {
   if (toastContainer) return toastContainer;
 
@@ -19,7 +16,7 @@ function ensureToastContainer() {
 }
 
 /* ===============================
-   SHOW TOAST
+   SHOW TOAST — 5 second duration with fade-out
 =============================== */
 export function showToast(message, type = "success") {
   const container = ensureToastContainer();
@@ -30,7 +27,14 @@ export function showToast(message, type = "success") {
 
   container.appendChild(toast);
 
+  // Trigger enter animation on next frame
+  requestAnimationFrame(() => {
+    toast.classList.add("toast-visible");
+  });
+
+  // Start fade-out at 4.5s, remove at 5s
   setTimeout(() => {
-    toast.remove();
+    toast.classList.add("toast-hiding");
+    setTimeout(() => toast.remove(), 500);
   }, 4500);
 }

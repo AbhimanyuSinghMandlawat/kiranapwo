@@ -2,7 +2,7 @@ import { logStaffAction } from "./staffHistory";
 import { getCurrentUser } from "../auth/authService";
 import { queueSync } from "./syncService";
 const DB_NAME = "kirana_pos_db";
-const DB_VERSION = 30;     // only change: increased version
+const DB_VERSION = 52;    // only change: increased version
 
 const SALES_STORE = "sales";
 const STOCK_STORE = "stocks";
@@ -75,15 +75,15 @@ export function openDB() {
 
       if (!db.objectStoreNames.contains("audit_logs")) {
         const store = db.createObjectStore("audit_logs", { keyPath: "id" });
-        store.createIndex("timestamp", "timestamp",{ unique: false });
-        store.createIndex("actorId", "actorId",{ unique: false });
-        store.createIndex("module", "module",{ unique: false });
+        store.createIndex("timestamp", "timestamp", { unique: false });
+        store.createIndex("actorId", "actorId", { unique: false });
+        store.createIndex("module", "module", { unique: false });
       }
 
       if (!db.objectStoreNames.contains("customers")) {
 
-       const store = db.createObjectStore("customers", {
-         keyPath: "id"
+        const store = db.createObjectStore("customers", {
+          keyPath: "id"
         });
 
         store.createIndex("phone", "phone", { unique: true });
@@ -105,21 +105,21 @@ export function openDB() {
       }
       if (!db.objectStoreNames.contains("customer_profiles")) {
 
-        const store = 
+        const store =
           db.createObjectStore("customer_profiles", {
             keyPath: "customer"
           });
-        store.createIndex("loyaltyLevel","loyaltyLevel");
+        store.createIndex("loyaltyLevel", "loyaltyLevel");
 
-        store.createIndex("lifetimeSpend","lifetimeSpend");
+        store.createIndex("lifetimeSpend", "lifetimeSpend");
       }
 
       /* ===== SYNC QUEUE STORE ===== */
 
       if (!db.objectStoreNames.contains("sync_queue")) {
         const q = db.createObjectStore("sync_queue", { keyPath: "id" });
-        q.createIndex("synced","synced");
-        q.createIndex("type","type");
+        q.createIndex("synced", "synced");
+        q.createIndex("type", "type");
       }
     };
 
@@ -208,12 +208,14 @@ export async function addStockItem(item) {
 
     tx.oncomplete = async () => {
       const actor = await getCurrentUser();
-        await logStaffAction(actor, {
-          module: "stock",
-          action: "NEW_ITEM",
-          summary: `Created item ${item.name}`,
-          details: item
-        });
+      await logStaffAction(actor, {
+        module: "stock",
+        action: "NEW_ITEM",
+        summary: `Created item ${item.name}`,
+        details: item
+      });
+      // ✅ FIX 2: Queue stock item for MySQL sync
+      await queueSync("stock", item);
       resolve();
     };
 
@@ -240,18 +242,18 @@ export async function updateStockQuantity(id, quantity) {
     const store = tx.objectStore(STOCK_STORE);
     const req = store.get(id);
 
-    req.onsuccess = async() => {
+    req.onsuccess = async () => {
       if (!req.result) return resolve();
       const before = req.result.quantity;
       req.result.quantity = quantity;
       store.put(req.result);
       const change = quantity - before;
-      if(change > 0){
+      if (change > 0) {
         const actor = await getCurrentUser();
         await logStaffAction(actor, {
           module: "stock",
           action: "ADD_STOCK",
-          summary:`Added ${req.result.name}`,
+          summary: `Added ${req.result.name}`,
           details: {
             item: req.result.name,
             added: change,
@@ -290,21 +292,21 @@ export async function removeStockItem(id) {
       try {
 
         const actor = await getCurrentUser();
-        if(actor){
-            await logStaffAction(actor, {
+        if (actor) {
+          await logStaffAction(actor, {
             module: "stock",
             action: "DELETE_ITEM",
             summary: `Removed item ${item.name}`,
             details: item
           });
         }
-      } catch{}
+      } catch { }
     };
     tx.oncomplete = () => resolve(true);
     tx.onerror = () => reject(tx.error);
     tx.onabort = () => reject(tx.error);
 
-    
+
   });
 }
 
@@ -330,7 +332,7 @@ export async function processSale(sale) {
         const req = stockStore.get(i.itemId);
 
         req.onsuccess = () => {
-          if(aborted) return;
+          if (aborted) return;
           const s = req.result;
 
           if (!s || s.quantity < i.qty) {
@@ -389,6 +391,9 @@ export async function processSale(sale) {
           }
         });
 
+        // ✅ FIX 1: Queue sale for MySQL sync
+        await queueSync("sale", sale);
+
         resolve();
       };
 
@@ -416,8 +421,8 @@ export async function getAllUsers() {
     const tx = db.transaction(USER_STORE, "readonly");
     const req = tx.objectStore(USER_STORE).getAll();
     req.onsuccess = () => {
-     const data = req.result || [];
-     resolve(data);
+      const data = req.result || [];
+      resolve(data);
     };
 
   });
@@ -587,7 +592,18 @@ export async function insertOpeningStock(items) {
       completedAt: Date.now()
     });
 
-    tx.oncomplete = () => resolve(true);
+    tx.oncomplete = async () => {
+      // ✅ FIX 3: Queue every opening stock item for MySQL sync
+      for (const item of items) {
+        await queueSync("stock", {
+          ...item,
+          openingQuantity: item.quantity,
+          isOpening: true,
+          createdAt: Date.now()
+        });
+      }
+      resolve(true);
+    };
     tx.onerror = () => reject(tx.error);
     tx.onabort = () => reject(tx.error);
   });

@@ -76,17 +76,39 @@ export async function renderCustomerPortal(container){
     `;
   }
 
+  // Load full profile for loyalty level
+  const { getCurrentCustomer } = await import("../services/customerAuthService.js");
+  const fullCustomer = await getCurrentCustomer();
+  const loyaltyLevel  = fullCustomer?.loyaltyLevel  || "bronze";
+  const displayName   = fullCustomer?.displayName   || session.displayName || "Customer";
+  const loyaltyColour = loyaltyLevel === "gold"   ? "#f59e0b"
+                      : loyaltyLevel === "silver" ? "#6b7280"
+                      : "#92400e";
+
   container.innerHTML = `
 
     <div class="page-header">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:12px">
         <div>
-          <h1 class="page-title">Your Shops</h1>
-          <p class="page-subtitle">
-            Manage your loyalty, coupons and shop relationships
+          <h1 class="page-title" style="margin:0">👋 Hello, ${displayName}</h1>
+          <p style="margin:6px 0 0">
+            <span style="background:${loyaltyColour};color:#fff;padding:3px 12px;border-radius:999px;font-size:13px;font-weight:600;text-transform:capitalize">
+              ${loyaltyLevel} Member
+            </span>
           </p>
         </div>
-        <div class="status-badge online">● Active</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          <button id="view-coupons-btn"
+            style="background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;
+                   padding:10px 18px;border-radius:12px;cursor:pointer;font-size:14px;font-weight:600">
+            🎟️ My Coupons${totalCoupons > 0 ? ` (${totalCoupons})` : ""}
+          </button>
+          <button id="customer-logout-btn"
+            style="background:#ef4444;color:#fff;border:none;
+                   padding:10px 16px;border-radius:12px;cursor:pointer;font-size:14px;font-weight:600">
+            🚪 Logout
+          </button>
+        </div>
       </div>
     </div>
 
@@ -108,21 +130,31 @@ export async function renderCustomerPortal(container){
 
       <div class="card stat-card">
         <div class="card-body">
-          <div class="stat-label">Total Savings</div>
-          <div class="stat-value">₹${totalSavings}</div>
+          <div class="stat-label">Lifetime Spend</div>
+          <div class="stat-value">₹${(fullCustomer?.lifetimeSpend || 0).toLocaleString("en-IN")}</div>
         </div>
       </div>
 
     </div>
 
     <div class="card" style="margin-top:24px;">
-      <div class="card-header">
-        <h3>Your Shop Memberships</h3>
+      <div class="card-header" style="padding:16px 20px;border-bottom:1px solid rgba(255,255,255,0.08)">
+        <h3 style="margin:0">🏪 Your Shop Memberships</h3>
       </div>
-      <div class="card-body">
+      <div class="card-body" style="padding:16px 20px">
         ${membershipContent}
       </div>
     </div>
 
   `;
+
+  // Wire buttons
+  document.getElementById("view-coupons-btn")?.addEventListener("click", () => {
+    location.hash = "customer-coupons";
+  });
+  document.getElementById("customer-logout-btn")?.addEventListener("click", async () => {
+    const { logoutCustomer } = await import("../services/customerAuthService.js");
+    logoutCustomer();
+    location.hash = "customer-login";
+  });
 }

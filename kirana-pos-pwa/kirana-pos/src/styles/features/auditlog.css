@@ -1,0 +1,399 @@
+/* ============================================================
+   AUDIT LOG  –  Premium Professional UI
+   ============================================================ */
+
+/* ── Page Header ── */
+.audit-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+}
+
+.audit-header h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin: 0;
+  background: linear-gradient(135deg, #6c63ff, #a78bfa);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.badge-owner {
+  background: linear-gradient(135deg, #6c63ff, #a78bfa);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+/* ── Stats Bar ── */
+.audit-stats-bar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.audit-stat-card {
+  background: var(--card-bg, #1e1e2e);
+  border: 1px solid rgba(108,99,255,0.2);
+  border-radius: 14px;
+  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.audit-stat-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(108,99,255,0.12);
+}
+
+.audit-stat-icon {
+  font-size: 1.6rem;
+  width: 42px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: rgba(108,99,255,0.12);
+  flex-shrink: 0;
+}
+
+.audit-stat-info p {
+  font-size: 11px;
+  color: #9ca3af;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.audit-stat-info strong {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--text, #e2e8f0);
+  line-height: 1.2;
+}
+
+/* ── Filter Bar ── */
+.audit-filter-bar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  background: var(--card-bg, #1e1e2e);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 14px;
+  padding: 14px 16px;
+}
+
+.audit-filter-bar input,
+.audit-filter-bar select {
+  flex: 1;
+  min-width: 180px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  color: var(--text, #e2e8f0);
+  padding: 10px 14px;
+  font-size: 14px;
+  outline: none;
+  transition: border 0.2s;
+}
+
+.audit-filter-bar input:focus,
+.audit-filter-bar select:focus {
+  border-color: #6c63ff;
+  box-shadow: 0 0 0 3px rgba(108,99,255,0.15);
+}
+
+.audit-filter-bar select option {
+  background: #1e1e2e;
+}
+
+/* ── Date Group ── */
+.audit-date-group {
+  margin-bottom: 28px;
+}
+
+.audit-date-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #6c63ff;
+  margin-bottom: 12px;
+  padding: 6px 4px;
+  border-bottom: 1px solid rgba(108,99,255,0.2);
+}
+
+.audit-date-header::before {
+  content: '';
+  width: 4px;
+  height: 16px;
+  background: linear-gradient(135deg, #6c63ff, #a78bfa);
+  border-radius: 4px;
+  display: inline-block;
+}
+
+/* ── Audit Card ── */
+.audit-card {
+  background: var(--card-bg, #1e1e2e);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 14px;
+  padding: 0;
+  margin-bottom: 10px;
+  overflow: hidden;
+  transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+  position: relative;
+}
+
+.audit-card:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 24px rgba(0,0,0,0.2);
+  border-color: rgba(108,99,255,0.25);
+}
+
+/* Left accent bar by module type */
+.audit-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  border-radius: 4px 0 0 4px;
+  background: #6c63ff;
+}
+
+.audit-card[data-module="sale"]::before   { background: linear-gradient(180deg, #34d399, #059669); }
+.audit-card[data-module="sales"]::before  { background: linear-gradient(180deg, #34d399, #059669); }
+.audit-card[data-module="stock"]::before  { background: linear-gradient(180deg, #60a5fa, #3b82f6); }
+.audit-card[data-module="auth"]::before   { background: linear-gradient(180deg, #f59e0b, #d97706); }
+
+/* ── Card Header ── */
+.audit-card-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px 14px 22px;
+}
+
+.audit-icon-wrap {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.audit-icon-wrap.mod-sale  { background: rgba(52,211,153,0.12); }
+.audit-icon-wrap.mod-sales { background: rgba(52,211,153,0.12); }
+.audit-icon-wrap.mod-stock { background: rgba(96,165,250,0.12); }
+.audit-icon-wrap.mod-auth  { background: rgba(245,158,11,0.12); }
+.audit-icon-wrap.mod-default { background: rgba(167,139,250,0.12); }
+
+.audit-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.audit-main .audit-action {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text, #e2e8f0);
+  margin: 0 0 3px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.audit-actor-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.audit-actor-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6c63ff;
+}
+
+.audit-role-pill {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.audit-role-pill.role-owner   { background: rgba(245,158,11,0.15); color: #f59e0b; }
+.audit-role-pill.role-manager { background: rgba(96,165,250,0.15); color: #60a5fa; }
+.audit-role-pill.role-cashier { background: rgba(52,211,153,0.15); color: #34d399; }
+.audit-role-pill.role-system  { background: rgba(156,163,175,0.15); color: #9ca3af; }
+
+.audit-time {
+  font-size: 12px;
+  color: #6b7280;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  margin-left: auto;
+  flex-shrink: 0;
+}
+
+/* ── Card Detail ── */
+.audit-detail {
+  background: rgba(255,255,255,0.025);
+  border-top: 1px solid rgba(255,255,255,0.05);
+  padding: 12px 18px 12px 22px;
+  font-size: 13px;
+  color: #9ca3af;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 8px 16px;
+}
+
+.audit-detail-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.audit-detail-chip label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.audit-detail-chip span {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text, #e2e8f0);
+}
+
+.audit-amount-chip span {
+  color: #34d399;
+}
+
+.audit-payment-chip span {
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Items list in sale logs */
+.audit-items-list {
+  grid-column: 1 / -1;
+  background: rgba(255,255,255,0.03);
+  border-radius: 8px;
+  padding: 8px 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.audit-item-tag {
+  background: rgba(108,99,255,0.1);
+  border: 1px solid rgba(108,99,255,0.2);
+  color: #a78bfa;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 8px;
+}
+
+/* ── Empty State ── */
+.audit-empty {
+  text-align: center;
+  padding: 60px 30px;
+  background: var(--card-bg, #1e1e2e);
+  border-radius: 18px;
+  border: 1px dashed rgba(255,255,255,0.1);
+}
+
+.audit-empty-icon {
+  font-size: 3.5rem;
+  margin-bottom: 16px;
+  filter: grayscale(0.3);
+}
+
+.audit-empty h3 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #e2e8f0;
+  margin: 0 0 8px 0;
+}
+
+.audit-empty p {
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0;
+}
+
+/* ── Scrollable body ── */
+#audit-log-body {
+  max-height: calc(100vh - 320px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+#audit-log-body::-webkit-scrollbar {
+  width: 5px;
+}
+
+#audit-log-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+#audit-log-body::-webkit-scrollbar-thumb {
+  background: rgba(108,99,255,0.3);
+  border-radius: 4px;
+}
+
+/* ── Clear logs button ── */
+.audit-clear-btn {
+  background: transparent;
+  border: 1px solid rgba(239,68,68,0.3);
+  color: #ef4444;
+  font-size: 12px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s;
+  font-weight: 600;
+}
+
+.audit-clear-btn:hover {
+  background: rgba(239,68,68,0.1);
+}
+
+/* ── Responsive ── */
+@media (max-width: 600px) {
+  .audit-stats-bar {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .audit-detail {
+    grid-template-columns: 1fr;
+  }
+  .audit-card-header {
+    padding: 12px 14px 12px 18px;
+  }
+}

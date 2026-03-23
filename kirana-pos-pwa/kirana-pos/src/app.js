@@ -6,6 +6,7 @@ import { renderCreditLedger } from "./pages/CreditLedger";
 import { renderStock } from "./pages/Stock";
 import { renderOpeningStock } from "./pages/OpeningStock";
 import { renderOpeningStockEntry } from "./pages/OpeningStockEntry";
+import { renderBillScanner } from "./pages/BillScanner";
 
 import Welcome from "./pages/Welcome";
 import { renderOwnerSetup, renderLogin } from "./auth/authUI";
@@ -53,6 +54,7 @@ const PAGE_MAP = {
   "opening-stock-entry": renderOpeningStockEntry,
   "audit-log": renderAuditLog,
   "shop-settings": renderShopSettings,
+  "bill-scanner": renderBillScanner,
   "customer-login": renderCustomerLogin,
   "customer-register": renderCustomerRegister,
   "customer-portal": renderCustomerPortal,
@@ -66,8 +68,8 @@ const PAGE_MAP = {
 ========================================================= */
 
 const PAGE_ACCESS = {
-  owner: ["dashboard","add-sale","reports","credit","ledger","stock","manage-staff","staff-history","audit-log","shop-settings"],
-  manager: ["dashboard","add-sale","reports","credit","ledger","stock","staff-history"],
+  owner:   ["dashboard","add-sale","reports","credit","ledger","stock","manage-staff","staff-history","audit-log","shop-settings","bill-scanner","coupon-manager"],
+  manager: ["dashboard","add-sale","reports","credit","ledger","stock","staff-history","bill-scanner"],
   cashier: ["dashboard","add-sale"]
 };
 

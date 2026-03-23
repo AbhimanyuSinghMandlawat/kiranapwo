@@ -519,12 +519,13 @@ export async function renderAddSale(container) {
     }
     await logAudit({
       action: "SALE_CREATED",
-      module: "sales",
+      module: "sale",
       targetId: sale.id,
       metadata: {
-        amount: sale.amount,
-        paymentMethod: sale.paymentMethod,
-        customer: sale.customerName || null
+        amount:        sale.amount,
+        payment:       sale.paymentMethod,
+        customer:      sale.customerName || null,
+        items:         (sale.items || []).map(i => ({ name: i.name, qty: i.qty, quantity: i.qty }))
       }
     });
 
