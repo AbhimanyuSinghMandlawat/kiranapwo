@@ -79,16 +79,12 @@ export async function renderAddSale(container) {
             <p><strong>Total:</strong> ₹<span id="cart-total">0</span></p>
           </div>
 
-          <div id="settlement-section" class="settlement-row">
-            <input type="checkbox" id="is-settlement" />
-            <span>This is a credit settlement</span>
-          </div>
 
-          <label>Payment Method</label>
+
+          <label>${t("addSale.paymentMethod")}</label>
           <div class="payment-options">
             <button type="button" class="btn-option" data-method="cash">${t("addSale.cash")}</button>
             <button type="button" class="btn-option" data-method="upi">${t("addSale.upi")}</button>
-            <button type="button" class="btn-option" data-method="card">${t("addSale.card")}</button>
             <button type="button" class="btn-option" data-method="credit">${t("addSale.credit")}</button>
           </div>
 
@@ -106,11 +102,10 @@ export async function renderAddSale(container) {
     </section>
   `);
 
-  const amountSection = document.getElementById("amount-section");
-  const itemSection = document.getElementById("item-sale-section");
-  const settlementSection = document.getElementById("settlement-section");
-  const modeAmountBtn = document.getElementById("mode-amount");
-  const modeItemsBtn = document.getElementById("mode-items");
+  const amountSection    = document.getElementById("amount-section");
+  const itemSection      = document.getElementById("item-sale-section");
+  const modeAmountBtn    = document.getElementById("mode-amount");
+  const modeItemsBtn     = document.getElementById("mode-items");
 
   modeAmountBtn.onclick = () => {
     saleMode = "amount";
@@ -118,7 +113,6 @@ export async function renderAddSale(container) {
     renderCart();
     amountSection.style.display = "block";
     itemSection.style.display = "none";
-    settlementSection.style.display = "flex";
     modeAmountBtn.classList.add("active");
     modeItemsBtn.classList.remove("active");
   };
@@ -129,7 +123,6 @@ export async function renderAddSale(container) {
     renderCart();
     amountSection.style.display = "none";
     itemSection.style.display = "block";
-    settlementSection.style.display = "none";
     modeItemsBtn.classList.add("active");
     modeAmountBtn.classList.remove("active");
   };
@@ -271,9 +264,6 @@ export async function renderAddSale(container) {
       return;
     }
 
-    const isSettlement =
-      saleMode === "amount" &&
-      document.getElementById("is-settlement").checked;
 
     let amount =
       saleMode === "items"
@@ -292,121 +282,17 @@ export async function renderAddSale(container) {
       document.getElementById("customer-phone")?.value.trim() || null;
 
     /*==================================
-      Custmore identity
+      Customer identity
     ====================================*/
     let customer = null;
 
-    if ( customerName ) {
+    if (customerName) {
       const { resolveCustomerIdentity } =
         await import("../services/customerIdentityService.js");
       customer = await resolveCustomerIdentity({
         name: customerName,
         phone: customerPhone
       });
-    }
-
-    if (isSettlement && !customerName) {
-      showToast(t("addSale.customerRequired"), "error");
-      return;
-    }
-
-    if (isSettlement) {
-
-      const accounts = await import("../services/accountingEngine.js")
-        .then(m => m.computeCustomerAccounts());
-
-      const acc = accounts[customerName.toLowerCase()] || {
-        goodsDue: 0,
-        loan: 0,
-        advance: 0
-      };
-
-      let remaining = amount;
-
-      if (acc.goodsDue > 0 && remaining > 0) {
-        const goodsPayment = Math.min(remaining, acc.goodsDue);
-        remaining -= goodsPayment;
-
-        await saveSale({
-          id: crypto.randomUUID(),
-          amount: goodsPayment,
-          customerName,
-          accountType: ACCOUNT_TYPE.PAYMENT_IN,
-          moneyDirection: MONEY_DIRECTION.IN,
-          stockEffect: STOCK_EFFECT.NONE,
-          liabilityEffect: LIABILITY_EFFECT.DECREASE_GOODS_DUE,
-          referenceSource: selectedPayment,
-          transactionType: "settlement_goods",
-          items: [],
-          financialEvent: buildFinancialEvent({
-            accountType: ACCOUNT_TYPE.PAYMENT_IN,
-            moneyDirection: MONEY_DIRECTION.IN,
-            stockEffect: STOCK_EFFECT.NONE,
-            customerName
-          }),
-          date: new Date().toLocaleDateString(),
-          timestamp: Date.now(),
-          estimatedProfit: 0
-        });
-      }
-
-      if (acc.loan > 0 && remaining > 0) {
-        const loanPayment = Math.min(remaining, acc.loan);
-        remaining -= loanPayment;
-
-        await saveSale({
-          id: crypto.randomUUID(),
-          amount: loanPayment,
-          customerName,
-          accountType: ACCOUNT_TYPE.LOAN_REPAID,
-          moneyDirection: MONEY_DIRECTION.IN,
-          stockEffect: STOCK_EFFECT.NONE,
-          liabilityEffect: LIABILITY_EFFECT.DECREASE_LOAN,
-          referenceSource: selectedPayment,
-          transactionType: "loan_repayment",
-          items: [],
-          financialEvent: buildFinancialEvent({
-            accountType: ACCOUNT_TYPE.LOAN_REPAID,
-            moneyDirection: MONEY_DIRECTION.IN,
-            stockEffect: STOCK_EFFECT.NONE,
-            customerName
-          }),
-          date: new Date().toLocaleDateString(),
-          timestamp: Date.now(),
-          estimatedProfit: 0
-        });
-      }
-
-      if (remaining > 0) {
-        await saveSale({
-          id: crypto.randomUUID(),
-          amount: remaining,
-          customerName,
-          accountType: ACCOUNT_TYPE.ADVANCE_DEPOSIT,
-          moneyDirection: MONEY_DIRECTION.IN,
-          stockEffect: STOCK_EFFECT.NONE,
-          liabilityEffect: LIABILITY_EFFECT.INCREASE_ADVANCE,
-          referenceSource: selectedPayment,
-          transactionType: "advance",
-          items: [],
-          financialEvent: buildFinancialEvent({
-            accountType: ACCOUNT_TYPE.ADVANCE_DEPOSIT,
-            moneyDirection: MONEY_DIRECTION.IN,
-            stockEffect: STOCK_EFFECT.NONE,
-            customerName
-          }),
-          date: new Date().toLocaleDateString(),
-          timestamp: Date.now(),
-          estimatedProfit: 0
-        });
-      }
-
-      showToast("Settlement recorded", "success");
-      navigate("dashboard");
-      setTimeout(() => {
-       window.dispatchEvent(new Event("saleUpdated"));
-      },50);
-      return;
     }
 
     let accountType = ACCOUNT_TYPE.ITEM_SALE;
@@ -436,10 +322,8 @@ export async function renderAddSale(container) {
       }
     }
 
-    let sale = null;
 
-    if(!isSettlement) {
-      sale = {
+    const sale = {
        id: crypto.randomUUID(),
        amount:amount,
        items: saleMode === "items" ? structuredClone(cartItems) : [],
@@ -471,10 +355,9 @@ export async function renderAddSale(container) {
           return;
         }
       }
-    }
 
-    if (sale) {
-      if(accountType === ACCOUNT_TYPE.ITEM_SALE)
+    // Process and save
+    if(accountType === ACCOUNT_TYPE.ITEM_SALE)
         await processSale(sale);
       else
         await saveSale(sale);
@@ -515,8 +398,8 @@ export async function renderAddSale(container) {
           amount: sale.amount
         });
 
-      }
     }
+
     await logAudit({
       action: "SALE_CREATED",
       module: "sale",

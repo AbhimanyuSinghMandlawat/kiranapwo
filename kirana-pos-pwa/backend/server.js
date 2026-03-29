@@ -15,6 +15,9 @@ const app = express();
 app.use(cors({
   origin: [
     "http://localhost:5173",
+    "http://localhost:5174",
+    "http://localhost:5175",
+    "http://localhost:5176",
     "http://localhost:4173",
     "http://localhost:5000"
   ],
@@ -647,92 +650,181 @@ app.post("/api/scan-bill", auth, upload.single("bill"), async (req, res) => {
 });
 
 /**
- * parseBillText – Intelligently extracts structured data from OCR'd bill text.
- * Handles most Indian bill/invoice formats.
+ * parseBillText – Smart multi-strategy parser for Indian invoices.
+ * Strategy 1: Table-based parsing (finds header row, extracts items as columns)
+ * Strategy 2: Line-by-line flexible extraction
+ * Strategy 3: Fallback number pattern detection
  */
 function parseBillText(text) {
   const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
 
-  // ── GST Number (15-char alphanumeric starting with 2 digits) ──
+  // ── GST Number ──
   const gstMatch = text.match(/\b(\d{2}[A-Z]{5}\d{4}[A-Z]{1}[A-Z\d]{1}[Z]{1}[A-Z\d]{1})\b/i);
   const gstNumber = gstMatch ? gstMatch[1].toUpperCase() : null;
 
   // ── Bill / Invoice Number ──
-  const billMatch = text.match(/(?:bill|invoice|inv|receipt)\s*(?:no|num|number|#)?[\s:.]*([A-Z0-9\-\/]+)/i);
+  const billMatch = text.match(/(?:invoice\s*no\.?|inv\s*no\.?|bill\s*no\.?|receipt\s*no\.?)[\s:.#]*([A-Z0-9\-\/]+)/i)
+                 || text.match(/\bIN-?(\d+)/i)
+                 || text.match(/\bINV[-#]?(\d+)/i);
   const billNumber = billMatch ? billMatch[1].trim() : null;
 
-  // ── Supplier Name (usually first prominent line or after "M/s", "From:", "Sold by") ──
+  // ── Supplier Name ──
   let supplierName = null;
-  const supplierPatterns = [
-    /(?:m\/s|from|sold by|supplier|vendor|bill from|billed by)[:\s]+([A-Za-z\s&.,']+)/i,
-    /^([A-Z][A-Z\s&.']+(?:STORE|MART|TRADERS|ENTERPRISES|WHOLESALE|DISTRIBUTOR|AGENCY|INDUSTRIES|CO\.|LTD\.|PVT\.?))/m
+  // First: look for known keywords
+  const snPatterns = [
+    /(?:from|sold by|supplier|vendor|billed by|bill from)[:\s]+([A-Za-z][A-Za-z0-9\s&.,'-]{2,79})/i,
+    /^([A-Z][A-Z\s&.'-]+(KIRANA|STORE|MART|TRADERS|ENTERPRISE|WHOLESALE|DISTRIBUTOR|AGENCY|INDUSTRIES|CO\.|LTD|PVT|SUPPLIER))/im
   ];
-  for (const p of supplierPatterns) {
-    const m = text.match(p);
-    if (m) { supplierName = m[1].trim().substring(0, 80); break; }
+  for (const p of snPatterns) {
+    const m = text.match(p); if (m) { supplierName = m[1].trim().substring(0, 80); break; }
   }
-  if (!supplierName && lines.length > 0) {
-    // Fallback: first non-numeric line that looks like a business name
-    const candidate = lines.find(l => l.length > 3 && l.length < 60 && /[A-Za-z]/.test(l) && !/^(date|tel|mob|phone|gst|invoice)/i.test(l));
-    if (candidate) supplierName = candidate;
+  // Fallback: first line that looks like a business name (not a label, not all digits)
+  if (!supplierName) {
+    const candidate = lines.find(l =>
+      l.length > 4 && l.length < 70 &&
+      /[A-Za-z]{3}/.test(l) &&
+      !/^(s\.?no|sn|item|qty|rate|amount|total|date|tax|gst|invoice|bill|phone|mobile|gstin|address|ship|pay)/i.test(l) &&
+      !/^\d+(\s|$)/.test(l)
+    );
+    if (candidate) supplierName = candidate.substring(0, 80);
   }
 
   // ── Supplier Mobile ──
-  const mobileMatch = text.match(/(?:mob(?:ile)?|tel|ph(?:one)?|contact)[:\s]*(\+?91[\-\s]?)?([6-9]\d{9})/i);
-  const supplierMobile = mobileMatch ? mobileMatch[2] : null;
+  const mobileMatch = text.match(/(?:mob(?:ile)?|tel|ph(?:one)?|contact|\bph\b)[:\s]*(\+?91[\-\s]?)?([6-9]\d{9})/i)
+                   || text.match(/(?<![\d])(\+91[\-\s]?)?([6-9]\d{9})(?![\d])/);
+  const supplierMobile = mobileMatch ? (mobileMatch[2] || mobileMatch[1]) : null;
 
-  // ── Item Extraction ──
-  // Strategy: look for lines with a price pattern at the end (common in bills)
-  // Patterns: "Sugar 5kg  2  45.00  90.00"  or "Rice   10  ₹35   ₹350"
-  const items = [];
-  const itemLineRegex = /^(.+?)\s+(\d+(?:\.\d+)?)\s+[\₹Rs.]?\s*(\d+(?:\.\d+)?)\s+[\₹Rs.]?\s*(\d+(?:\.\d+)?)$/;
-  const simpleItemRegex = /^(.+?)\s+(?:×|x|\*|qty[\s:]*)?(\d+(?:\.\d+)?)\s+[\₹Rs.]?\s*(\d+(?:\.\d+)?)$/i;
+  // ════════════════════════════════════
+  //  ITEM EXTRACTION  (Primary: Table detection)
+  // ════════════════════════════════════
+  let items = [];
 
-  for (const line of lines) {
-    // Skip header/footer noise
-    if (/total|subtotal|tax|gst|discount|amount|grand|net|paid|balance|thank|address|date|bill no|invoice/i.test(line)) continue;
-    if (line.length < 5 || /^[\d\s.₹-]+$/.test(line)) continue;
+  // ─── Strategy 1: Detect table header row and parse below it ───
+  // Find the header line containing S.No / SN / Sr. along with ITEMS / QTY / RATE / AMOUNT
+  let headerIdx = -1;
+  let colMap = {}; // column name → regex/position
 
-    let m = line.match(itemLineRegex);
-    if (m) {
-      const name     = m[1].trim();
-      const qty      = parseFloat(m[2]);
-      const rate     = parseFloat(m[3]);
-      const total    = parseFloat(m[4]);
-      // Validate: total should roughly equal qty × rate
-      if (Math.abs(total - qty * rate) < 2 || total > 0) {
-        items.push({ name, qty, price: rate, total });
-        continue;
-      }
+  for (let i = 0; i < lines.length; i++) {
+    const l = lines[i].toLowerCase();
+    const hasItemCol  = /\b(items?|description|particulars|product|goods)\b/.test(l);
+    const hasQtyCol   = /\b(qty|quantity|units?)\b/.test(l);
+    const hasRateCol  = /\b(rate|price|mrp|unit\s*price)\b/.test(l);
+    const hasAmtCol   = /\b(amount|amt|total)\b/.test(l);
+    const hasSerial   = /\b(s\.?no|sr\b|sn\b|s\/no)/.test(l);
+
+    if ((hasItemCol || hasSerial) && (hasQtyCol || hasRateCol || hasAmtCol)) {
+      headerIdx = i;
+      break;
     }
+  }
 
-    m = line.match(simpleItemRegex);
-    if (m) {
-      const name  = m[1].trim();
-      const qty   = parseFloat(m[2]);
-      const price = parseFloat(m[3]);
-      if (name.length > 1 && name.length < 60 && qty > 0 && price > 0) {
-        items.push({ name, qty, price, total: qty * price });
+  if (headerIdx >= 0) {
+    // Parse lines below the header until we hit TOTAL/SUBTOTAL/end
+    for (let i = headerIdx + 1; i < lines.length; i++) {
+      const line = lines[i];
+      const lc   = line.toLowerCase();
+
+      // Stop at footer lines
+      if (/^\s*(total|sub\s*total|grand\s*total|net\s*total|received|balance|terms|igst|cgst|sgst|hsncode|payment|thank|invoice amount|bank|cheque)/i.test(lc)) break;
+      if (/^[\s₹\-\.]+$/.test(line)) continue;
+
+      // Extract: line should contain at least one price/number pattern
+      // Format: [serial] [item name] [hsn?] [qty Unit] [rate] [disc?] [tax?] [amount]
+      // We find name + numbers, then pick qty=first plausible number, rate=one near the end
+      const nums = [...line.matchAll(/([\d]+(?:[.,]\d+)?)/g)].map(m => parseFloat(m[1].replace(',','')));
+
+      // Item name = everything before the first number (or serial stripped)
+      let nameRaw = line.replace(/^\d+\.?\s*/, '').replace(/([\d]+(?:[.,]\d+)?.*)/,'').trim();
+      // Strip trailing dash / hyphen that appears as HSN placeholder
+      nameRaw = nameRaw.replace(/[-–|]+\s*$/, '').trim();
+
+      if (nameRaw.length < 2 || nums.length < 2) continue;
+      if (/^(total|subtotal|grand|balance|received|tax|gst|igst|cgst|sgst|hsn|amount)/i.test(nameRaw)) continue;
+
+      // qty: look for number followed by unit like BOR / PCS / KGS / PET / LTR etc.
+      let qty = 1, price = 0;
+      const qtyMatch = line.match(/(\d+(?:\.\d+)?)\s*(?:BOR|PCS|PET|KGS?|LTR?|BOX|BAG|RLL|NOS?|PKT|MTR|GM|GMS|NO\b)/i);
+      if (qtyMatch) {
+        qty   = parseFloat(qtyMatch[1]);
+        // rate = the number right after that in the same line (skip the disc/tax cols → use AMOUNT)
+        const afterQty = line.slice(line.indexOf(qtyMatch[0]) + qtyMatch[0].length);
+        const remaining = [...afterQty.matchAll(/([\d]+(?:[.,]\d+)?)/g)].map(m => parseFloat(m[1].replace(',','')));
+        // Pick the largest plausible price from remaining (usually the line total/amount)
+        const candidates = remaining.filter(n => n > 0 && n < 1_000_000);
+        price = candidates.length > 0 ? candidates[candidates.length - 1] : 0; // rightmost = amount
+        // Recalculate rate from amount
+        if (qty > 0 && price > 0) price = Math.round((price / qty) * 100) / 100;
+      } else {
+        // Fallback: if no unit found, use the 1st number as qty, 2nd last as rate, last as total
+        if (nums.length >= 2) {
+          const possibleQty = nums[0];
+          if (possibleQty <= 100) {
+            qty = possibleQty;
+            price = nums[nums.length - 2] || nums[nums.length - 1];
+          } else {
+            qty = 1;
+            price = nums[nums.length - 1];
+          }
+        }
+      }
+
+      const name = nameRaw.substring(0, 60);
+      if (name.length >= 2 && qty > 0 && price > 0) {
+        items.push({ name, qty, price, total: Math.round(qty * price * 100) / 100 });
       }
     }
   }
 
-  // Confidence score (0–100) based on how much we could extract
-  let confidence = 0;
-  if (gstNumber)    confidence += 25;
-  if (billNumber)   confidence += 15;
-  if (supplierName) confidence += 20;
-  if (supplierMobile) confidence += 10;
-  if (items.length > 0) confidence += Math.min(30, items.length * 5);
+  // ─── Strategy 2: Line-by-line flexible fallback ───
+  if (items.length === 0) {
+    const skipLine = /^(total|subtotal|grand|balance|paid|tax|gst|igst|cgst|sgst|hsn|discount|amount in words|thank|address|terms|payment|date|bill|invoice|from|to|ship|phone|mobile|gstin|upi|qr)/i;
+    for (const line of lines) {
+      if (line.length < 5) continue;
+      if (skipLine.test(line.trim())) continue;
+      if (/^[\d\s.₹,\-]+$/.test(line)) continue;
 
-  return {
-    gstNumber,
-    billNumber,
-    supplierName,
-    supplierMobile,
-    items,
-    confidence
-  };
+      // Try: "Name  QTY  RATE" (3 fields with numbers at end)
+      const m4 = line.match(/^(.+?)\s+(\d+(?:[.,]\d+)?)\s+(\d+(?:[.,]\d+)?)\s+(\d+(?:[.,]\d+)?)\s*$/);
+      if (m4) {
+        const name  = m4[1].trim().replace(/^\d+\.?\s*/, '');
+        const qty   = parseFloat(m4[2]);
+        const rate  = parseFloat(m4[3]);
+        if (name.length > 1 && name.length < 60 && qty > 0 && rate > 0) {
+          items.push({ name, qty, price: rate, total: qty * rate });
+          continue;
+        }
+      }
+
+      const m3 = line.match(/^(.+?)\s+(\d+(?:[.,]\d+)?)\s+(\d+(?:[.,]\d+)?)\s*$/);
+      if (m3) {
+        const name  = m3[1].trim().replace(/^\d+\.?\s*/, '');
+        const qty   = parseFloat(m3[2]);
+        const price = parseFloat(m3[3]);
+        if (name.length > 1 && name.length < 60 && qty > 0 && price > 0) {
+          items.push({ name, qty, price, total: qty * price });
+        }
+      }
+    }
+  }
+
+  // De-duplicate and clean
+  const seen = new Set();
+  const cleanItems = items.filter(it => {
+    const key = it.name.toLowerCase().trim();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+
+  // ── Confidence ──
+  let confidence = 0;
+  if (gstNumber)      confidence += 25;
+  if (billNumber)     confidence += 15;
+  if (supplierName)   confidence += 20;
+  if (supplierMobile) confidence += 10;
+  if (cleanItems.length > 0) confidence += Math.min(30, cleanItems.length * 4);
+
+  return { gstNumber, billNumber, supplierName, supplierMobile, items: cleanItems, confidence };
 }
 
 /* ===============================

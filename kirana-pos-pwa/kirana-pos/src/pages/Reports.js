@@ -2,6 +2,7 @@ import { renderLayout } from "../components/Layout";
 import { getAllSales } from "../services/db";
 import { getLast7DaysProfit } from "../services/profitTrends";
 import { getStockAlerts } from "../services/stockAlerts";
+import { t } from "../i18n/i18n";
 
 /* =====================
    PROFIT BAR VISUAL CONFIG
@@ -81,14 +82,14 @@ export async function renderReports(container) {
       const heightPx = getBarHeight(p.profit, maxProfit);
 
       return `
-        <div class="profit-bar-wrapper">
+        <div class="profit-bar-wrapper${p.isToday ? " today" : ""}">
           <span class="profit-value">₹${p.profit}</span>
           <div
             class="profit-bar ${p.profit === 0 ? "zero" : ""}"
             style="--h:${heightPx}px"
             data-value="₹${p.profit}"
           ></div>
-          <span class="profit-label">${p.date.split("/")[0]}</span>
+          <span class="profit-label">${p.label}${p.isToday ? " ●" : ""}</span>
         </div>
       `;
     })
@@ -99,35 +100,35 @@ export async function renderReports(container) {
   ===================== */
   const content = `
     <section class="dashboard">
-      <h1>Reports</h1>
+      <h1>${t("reports.title")}</h1>
 
       <div class="cards">
         <div class="card">
-          <p>Today</p>
+          <p>${t("reports.today")}</p>
           <h2>₹${todayTotal}</h2>
         </div>
 
         <div class="card">
-          <p>Last 7 Days</p>
+          <p>${t("reports.last7")}</p>
           <h2>₹${weeklyTotal}</h2>
         </div>
 
         <div class="card">
-          <p>This Month</p>
+          <p>${t("reports.thisMonth")}</p>
           <h2>₹${monthlyTotal}</h2>
         </div>
       </div>
 
       <div class="cards" style="margin-top: 24px;">
         <div class="card">
-          <p>Stock Alerts</p>
+          <p>${t("reports.stockAlerts")}</p>
           ${stockAlertHtml}
         </div>
       </div>
 
       <div class="cards" style="margin-top: 24px;">
         <div class="card">
-          <p>Profit Trend (Last 7 Days)</p>
+          <p>${t("reports.profitTrend")}</p>
           <div class="profit-chart">
             ${chartBars}
           </div>

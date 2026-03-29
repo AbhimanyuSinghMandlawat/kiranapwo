@@ -1,5 +1,6 @@
 import { createOwnerAccount, login, getCurrentUser, logout } from "./authService";
 import { navigate } from "../app";
+import { isOnboardingCompleted } from "../services/db";
 
 /* ===============================
    OWNER SETUP  (first login – collects email + mobile)
@@ -80,11 +81,17 @@ export function renderLogin(container) {
     btn.disabled = true;
     btn.textContent = "Logging in...";
     try {
-      await login(
+      const user = await login(
         document.getElementById("username").value.trim(),
         document.getElementById("password").value
       );
-      navigate("dashboard");
+      // ✅ ONE-TIME ONBOARDING: check only at login time, never during navigation
+      const onboarded = await isOnboardingCompleted();
+      if (!onboarded && user.role !== "customer") {
+        navigate("opening-stock");
+      } else {
+        navigate("dashboard");
+      }
     } catch (e) {
       document.getElementById("msg").innerHTML =
         `<span style='color:#e57373'>❌ ${e.message}</span>`;

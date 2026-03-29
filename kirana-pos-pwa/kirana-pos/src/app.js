@@ -7,6 +7,7 @@ import { renderStock } from "./pages/Stock";
 import { renderOpeningStock } from "./pages/OpeningStock";
 import { renderOpeningStockEntry } from "./pages/OpeningStockEntry";
 import { renderBillScanner } from "./pages/BillScanner";
+import { renderCreditLoan } from "./pages/CreditLoan";
 
 import Welcome from "./pages/Welcome";
 import { renderOwnerSetup, renderLogin } from "./auth/authUI";
@@ -55,6 +56,7 @@ const PAGE_MAP = {
   "audit-log": renderAuditLog,
   "shop-settings": renderShopSettings,
   "bill-scanner": renderBillScanner,
+  "credit-loan": renderCreditLoan,
   "customer-login": renderCustomerLogin,
   "customer-register": renderCustomerRegister,
   "customer-portal": renderCustomerPortal,
@@ -68,8 +70,8 @@ const PAGE_MAP = {
 ========================================================= */
 
 const PAGE_ACCESS = {
-  owner:   ["dashboard","add-sale","reports","credit","ledger","stock","manage-staff","staff-history","audit-log","shop-settings","bill-scanner","coupon-manager"],
-  manager: ["dashboard","add-sale","reports","credit","ledger","stock","staff-history","bill-scanner"],
+  owner:   ["dashboard","add-sale","reports","credit","ledger","stock","manage-staff","staff-history","audit-log","shop-settings","bill-scanner","coupon-manager","credit-loan"],
+  manager: ["dashboard","add-sale","reports","credit","ledger","stock","staff-history","bill-scanner","credit-loan"],
   cashier: ["dashboard","add-sale"]
 };
 
@@ -196,35 +198,18 @@ export async function navigate(rawPage, skipHashUpdate = false) {
   }
 
 
-  const onboardingDone =
-    await isOnboardingCompleted();
-
   if (page === "logout") {
     await logout ();
     location.hash = "";
     return;
   }
 
-
-  if (
-    APP_BOOTED &&
-    !onboardingDone &&
-    !["opening-stock", "opening-stock-entry"].includes(page)
-  ) {
-    page = "opening-stock";
+  // Role-based access guard (only when onboarding is done)
+  const onboardingDone = await isOnboardingCompleted();
+  if (onboardingDone && user && !PAGE_ACCESS[user.role]?.includes(page)) {
+    page = "dashboard";
   }
-
-
-  if (user && onboardingDone) {
-
-    if (!PAGE_ACCESS[user.role]?.includes(page)) {
-      page = "dashboard";
-    }
-  }
-
   
-
-
   const renderer =
     PAGE_MAP[page] || renderDashboard;
 
@@ -244,7 +229,7 @@ export async function navigate(rawPage, skipHashUpdate = false) {
     content.classList.remove("page-exit");
   }
 
-
+  APP_BOOTED = true;
   await renderer(app);
 
 
@@ -272,9 +257,6 @@ export async function navigate(rawPage, skipHashUpdate = false) {
 
 
   markActivePage(page);
-
-
-  APP_BOOTED = true;
 }
 
 

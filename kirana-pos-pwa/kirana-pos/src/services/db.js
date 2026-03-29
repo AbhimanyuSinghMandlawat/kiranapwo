@@ -2,7 +2,7 @@ import { logStaffAction } from "./staffHistory";
 import { getCurrentUser } from "../auth/authService";
 import { queueSync } from "./syncService";
 const DB_NAME = "kirana_pos_db";
-const DB_VERSION = 52;    // only change: increased version
+const DB_VERSION = 53;    // only change: increased version
 
 const SALES_STORE = "sales";
 const STOCK_STORE = "stocks";

@@ -39,46 +39,43 @@ export async function renderDashboard() {
 
   const content = `
     <section class="dashboard">
-      <h1>${t("Dashboard")}</h1>
-      
+      <h1>${t("dashboard.title")}</h1>
 
       <div class="dashboard-actions">
         <button id="view-summary" class="btn-secondary">
-          📊 View Today's Summary
+          📊 ${t("dashboard.viewSummary")}
         </button>
       </div>
 
       <div class="cards">
         <div class="card">
-          <p>Total Sales</p>
+          <p>${t("dashboard.totalSales")}</p>
           <h2>₹${totalSales}</h2>
         </div>
 
         <div class="card">
-          <p>Transactions</p>
+          <p>${t("dashboard.transactions")}</p>
           <h2>${transactionCount}</h2>
         </div>
 
         <div class="card">
-          <p>Credit Sales</p>
+          <p>${t("dashboard.creditSales")}</p>
           <h2>₹${creditTotal}</h2>
         </div>
 
-        <!-- ✅ CLARIFIED LABEL -->
         <div class="card">
-          <p>Today's Profit</p>
+          <p>${t("dashboard.todayProfit")}</p>
           <h2>₹${todayProfit}</h2>
         </div>
 
-        <!-- ✅ BUSINESS CREDIT SCORE -->
         <div class="card">
-          <p>Business Credit Health</p>
+          <p>${t("dashboard.creditHealth")}</p>
           <h2>${mhi.score}</h2>
           <small>${mhi.label}</small>
         </div>
 
         <div class="card">
-          <p>Insights</p>
+          <p>${t("dashboard.insights")}</p>
           <ul>
             ${insights.map(i => `<li>${i}</li>`).join("")}
           </ul>

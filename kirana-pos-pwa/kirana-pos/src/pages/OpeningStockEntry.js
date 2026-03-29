@@ -6,6 +6,8 @@ import {
 } from "../services/db";
 
 import { createShop } from "../services/shopService";
+import { showToast } from "../utils/toast";
+import { navigate } from "../app";
 
 export async function renderOpeningStockEntry(container) {
 
@@ -14,8 +16,8 @@ export async function renderOpeningStockEntry(container) {
     <div class="opening-card">
 
       <div class="opening-header">
-        <h1>Opening Inventory</h1>
-        <p>Enter items currently available in your shop</p>
+        <h1>Setup Your Inventory</h1>
+        <p>Enter your opening stock to start using the system</p>
       </div>
 
       <table class="inventory-table">
@@ -135,7 +137,7 @@ export async function renderOpeningStockEntry(container) {
       if (!name || qty <= 0) continue;
 
       if (sell <= 0) {
-        alert(`Selling price missing for "${name}"`);
+        showToast(`Selling price missing for "${name}"`, "error");
         saveBtn.disabled = false;
         saveBtn.textContent = "Save Opening Inventory";
         saveBtn.dataset.loading = "0";
@@ -143,7 +145,7 @@ export async function renderOpeningStockEntry(container) {
       }
 
       if (sell < cost) {
-        alert(`Selling price cannot be lower than cost for "${name}"`);
+        showToast(`Selling price cannot be lower than cost for "${name}"`, "error");
         saveBtn.disabled = false;
         saveBtn.textContent = "Save Opening Inventory";
         saveBtn.dataset.loading = "0";
@@ -161,7 +163,7 @@ export async function renderOpeningStockEntry(container) {
     }
 
     if (items.length === 0) {
-      alert("Enter at least one valid item");
+      showToast("Enter at least one valid item with name and quantity.", "error");
       saveBtn.disabled = false;
       saveBtn.textContent = "Save Opening Inventory";
       saveBtn.dataset.loading = "0";
@@ -202,8 +204,9 @@ export async function renderOpeningStockEntry(container) {
     }
 
     saveBtn.textContent = "Saved ✓";
+    showToast("✅ Opening inventory saved! Welcome to your dashboard.", "success");
 
-    /* Navigate */
-    location.replace("#dashboard");
+    /* Smooth navigate to dashboard */
+    setTimeout(() => navigate("dashboard"), 800);
   };
 }

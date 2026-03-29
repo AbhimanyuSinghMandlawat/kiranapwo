@@ -1,65 +1,145 @@
 /* =====================================================
-   APP LAYOUT
-   ===================================================== */
+   APP LAYOUT — RESPONSIVE GRID
+   Breakpoints:
+     Desktop  : > 1100px  — full sidebar + content
+     Tablet   : 768–1100px — narrow sidebar
+     Mobile   : < 768px   — hidden sidebar, hamburger drawer
+===================================================== */
 
 .app-layout {
   display: flex;
   min-height: 100vh;
   background: var(--bg-primary);
+  position: relative;
 }
 
-/* ======================
-   SIDEBAR (DESKTOP)
-====================== */
-
+/* Sidebar (Desktop default) */
 .sidebar {
   width: 240px;
+  min-width: 200px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Right panel: status bar + main content stacked vertically */
+.app-right-panel {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+
+/* Status bar — sticky across the top of the right panel */
+.sync-status {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 28px;
+  background: rgba(15, 23, 42, 0.96);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-secondary, #94a3b8);
+  letter-spacing: 0.2px;
   flex-shrink: 0;
 }
 
-/* ======================
-   MAIN CONTENT
-====================== */
+.sync-status .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
 
+.sync-status .dot.online  { background: #22c55e; box-shadow: 0 0 6px #22c55e88; }
+.sync-status .dot.offline { background: #f59e0b; box-shadow: 0 0 6px #f59e0b88; }
+
+/* Main content fills remaining space */
 .main-content {
   flex: 1;
-  padding: 32px;
+  min-width: 0;
+  padding: 28px 36px;
   overflow-y: auto;
-  transition: transform .16s cubic-bezier(.4,0,.2,1),
-              filter .16s ease;
+  transition: transform .16s cubic-bezier(.4,0,.2,1), filter .16s ease;
 }
 
 /* =====================================================
-   MOBILE RESPONSIVE
-   ===================================================== */
+   TABLET  768px – 1100px
+===================================================== */
+@media (max-width: 1100px) and (min-width: 769px) {
 
-@media (max-width: 900px) {
-
-  /* Hide desktop sidebar */
   .sidebar {
-    display: none;
+    width: 190px;
+    min-width: 160px;
   }
 
-  /* ===== MOBILE HEADER ===== */
-  .mobile-header {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 60px;
-    z-index: 1000;
-  }
-
-  /* Push content below fixed header */
   .main-content {
-    margin-top: 60px;       /* header height */
-    padding: 24px;
+    padding: 24px 24px;
   }
 
-  /* ===== DRAWER ANIMATION ===== */
+  .sync-status {
+    padding: 8px 24px;
+  }
+}
+
+/* =====================================================
+   MOBILE  ≤ 768px
+===================================================== */
+@media (max-width: 768px) {
+
+  .sidebar {
+    display: none !important;
+  }
+
+  /* app-right-panel pushes below mobile header */
+  .app-right-panel {
+    margin-top: 56px;
+  }
+
+  .main-content {
+    padding: 16px 14px 80px;
+  }
+
+  .sync-status {
+    padding: 7px 14px;
+    font-size: 0.74rem;
+    position: sticky;
+    top: 0;
+  }
+
   body.drawer-open .main-content {
+    position: fixed;
+    width: 100%;
     transform: translateX(40px);
-    filter: brightness(.92);
+    filter: brightness(.88);
+    transition: transform .16s cubic-bezier(.4,0,.2,1), filter .16s ease;
+  }
+}
+
+/* =====================================================
+   LARGE SCREENS  > 1400px
+===================================================== */
+@media (min-width: 1400px) {
+  .sidebar {
+    width: 260px;
   }
 
+  .main-content {
+    padding: 36px 48px;
+  }
+
+  .sync-status {
+    margin: -36px -48px 28px;
+  }
 }

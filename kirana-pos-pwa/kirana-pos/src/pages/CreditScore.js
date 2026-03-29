@@ -2,6 +2,7 @@
 
 import { renderLayout } from "../components/Layout";
 import { getCustomerProfiles } from "../services/customerProfile";
+import { t } from "../i18n/i18n";
 
 /* ===============================
    RENDER PAGE
@@ -13,10 +14,8 @@ export async function renderCreditScore(container) {
 
   container.innerHTML = await renderLayout(`
     <section class="credit-page">
-      <header class="credit-header">
-        <h1>Customer Intelligence</h1>
-        <p>Know who is safe to give credit</p>
-      </header>
+      <h1>${t("creditScore.title")}</h1>
+      <p style="color:var(--text-secondary,#94a3b8);margin-bottom:20px;font-size:.9rem">${t("creditScore.subtitle")}</p>
 
       <div class="customer-grid">
         ${

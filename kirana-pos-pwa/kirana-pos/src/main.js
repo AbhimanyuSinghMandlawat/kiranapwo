@@ -19,19 +19,23 @@ initSyncListener();
    NETWORK HANDLING
 =============================== */
 
-function handleNetworkChange() {
-  const page = location.hash.replace("#", "") || "dashboard";
+async function handleNetworkChange() {
+  const online = navigator.onLine;
+
+  // Update both legacy utils and the new Layout status bar
+  const { updateNetworkBadge } = await import("./components/Layout.js");
+  updateNetworkBadge(online);
 
   const networkEl = document.getElementById("network-status");
 
   if (networkEl) {
     networkEl.textContent = getNetworkStatus();
-    networkEl.className = navigator.onLine
+    networkEl.className = online
       ? "network-status online"
       : "network-status offline";
   }
 
-  if (!navigator.onLine) {
+  if (!online) {
 
     updateSyncStatus("offline");
 
