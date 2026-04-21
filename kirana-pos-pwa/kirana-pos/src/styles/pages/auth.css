@@ -1,16 +1,37 @@
+/* Cinematic Fade-in Animation */
+@keyframes cinematicEntry {
+  0% {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+    filter: blur(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: blur(0);
+  }
+}
+
 .auth-container {
   max-width: 420px;
-  margin: 80px auto;
-  padding: 30px;
-  background: #111827;
-  border-radius: 14px;
+  margin: 100px auto;
+  padding: 40px;
+  /* Glassmorphism Implementation */
+  background: rgba(17, 24, 39, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
   text-align: center;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  animation: cinematicEntry 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .auth-container h2 {
-  margin-bottom: 20px;
+  margin-bottom: 24px;
   color: #f3f4f6;
+  font-weight: 600;
+  letter-spacing: -0.5px;
 }
 
 .auth-container input {

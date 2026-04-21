@@ -1,91 +1,162 @@
 /* =====================================================
-   DASHBOARD
-   ===================================================== */
-.dashboard h1 {
-  font-size: 28px;
-  margin-bottom: 24px;
+   DASHBOARD — KPI Grid + Page Header
+===================================================== */
+
+/* ── Page header: title + action row ── */
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4, 16px);
+  margin-bottom: var(--space-7, 28px);
+  flex-wrap: wrap;
 }
 
-.cards {
+.page-header h1 {
+  margin: 0 0 4px;
+}
+
+.page-subtitle {
+  font-size: var(--text-sm, 13px);
+  color: var(--text-subtle, #64748b);
+  margin: 0;
+}
+
+/* ── KPI grid ── */
+.kpi-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 24px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--space-4, 16px);
 }
 
-/* =====================================================
-   DASHBOARD CARDS – UI / UX POLISH
-   ===================================================== */
-
-.dashboard .cards {
-  gap: 28px;
-}
-
-.dashboard .card {
+/* ── KPI card ── */
+.kpi-card {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4, 16px);
+  background: var(--card-bg, rgba(255,255,255,0.045));
+  border: 1px solid var(--card-border, rgba(255,255,255,0.09));
+  border-radius: var(--radius, 14px);
+  padding: var(--space-5, 20px);
+  box-shadow: var(--shadow-sm, 0 2px 8px rgba(0,0,0,0.25));
+  transition: transform var(--transition, 0.18s ease),
+              box-shadow var(--transition, 0.18s ease),
+              border-color var(--transition, 0.18s ease);
   position: relative;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+  overflow: hidden;
 }
 
-.dashboard .card:hover {
+.kpi-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.02), transparent);
+  pointer-events: none;
+}
+
+.kpi-card:hover {
   transform: translateY(-3px);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.35);
+  box-shadow: var(--shadow, 0 4px 20px rgba(0,0,0,0.35));
+  border-color: rgba(255,255,255,0.13);
 }
 
-.dashboard .card h3,
-.dashboard .card h4 {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-muted);
-  margin-bottom: 8px;
-  letter-spacing: 0.3px;
+/* Insights card spans full width on large screens */
+.kpi-card--insights {
+  grid-column: 1 / -1;
 }
 
-.dashboard .card .value,
-.dashboard .card .amount,
-.dashboard .card strong {
-  font-size: 32px;
+/* ── KPI icon ── */
+.kpi-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+/* ── KPI body ── */
+.kpi-body {
+  min-width: 0;
+  flex: 1;
+}
+
+.kpi-label {
+  font-size: var(--text-xs, 11px);
   font-weight: 600;
-  line-height: 1.2;
-  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-subtle, #64748b);
+  margin: 0 0 var(--space-1, 4px);
 }
 
-.dashboard .card p {
-  margin-top: 6px;
-  font-size: 13px;
-  color: var(--text-muted);
+.kpi-value {
+  font-size: var(--text-2xl, 24px);
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  color: var(--text-primary, #e5e7eb);
+  margin: 0;
+  line-height: 1.1;
 }
 
-.dashboard .card.success .value {
-  color: var(--success);
+.kpi-badge {
+  display: inline-block;
+  margin-top: var(--space-1, 4px);
+  font-size: var(--text-xs, 11px);
+  padding: 2px 8px;
+  border-radius: 20px;
+  background: rgba(255,255,255,0.07);
+  color: var(--text-muted, #9ca3af);
+  font-weight: 500;
 }
 
-.dashboard .card.warning .value {
-  color: var(--warning);
+/* ── Insights list ── */
+.insights-list {
+  margin: var(--space-2, 8px) 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2, 8px);
 }
 
-.dashboard .card.danger .value {
-  color: var(--danger);
-}
-.dashboard-actions {
-  display:flex;
-  justify-content:flex-start;
-  margin: 18px 0 10px;
-}
-
-.dashboard-actions .btn-secondary{
-  background: rgba(30,41,59,.85);
-  border:1px solid rgba(255,255,255,.10);
-  backdrop-filter: blur(8px);
-  box-shadow: 0 6px 18px rgba(0,0,0,.25);
-}
-.metric-value{
-  font-size:28px;
-  font-weight:700;
-  color:#34d399;
-  letter-spacing:.5px;
+.insights-list li {
+  font-size: var(--text-sm, 13px);
+  color: var(--text-secondary, #cbd5e1);
+  background: rgba(255,255,255,0.05);
+  border-radius: var(--radius-sm, 8px);
+  padding: var(--space-1, 4px) var(--space-3, 12px);
+  border: 1px solid rgba(255,255,255,0.06);
 }
 
-.metric-label{
-  color:#94a3b8;
-  font-size:13px;
+/* ── Mobile ── */
+@media (max-width: 640px) {
+  .kpi-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-3, 12px);
+  }
+
+  .kpi-card {
+    padding: var(--space-4, 16px);
+  }
+
+  .kpi-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 16px;
+  }
+
+  .kpi-value { font-size: 20px; }
+
+  .kpi-card--insights {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 400px) {
+  .kpi-grid {
+    grid-template-columns: 1fr;
+  }
 }

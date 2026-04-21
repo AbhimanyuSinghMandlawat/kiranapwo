@@ -68,14 +68,9 @@ window.addEventListener("offline", handleNetworkChange);
    APP START
 =============================== */
 
-// Start app from current hash or default dashboard
+// navigate() is fully auth-aware: it renders login/welcome/layout as needed.
+// We must NOT pre-render the layout here — that causes double-nesting + auth bypass.
 window.addEventListener("load", async () => {
-  const app = document.getElementById("app");
-
-  // render empty layout shell once
-  const { renderLayout } = await import("./components/Layout");
-  app.innerHTML = await renderLayout("");
-
   const page = location.hash.replace("#", "") || "dashboard";
   await navigate(page);
 });

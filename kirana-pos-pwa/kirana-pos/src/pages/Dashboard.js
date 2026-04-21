@@ -10,76 +10,82 @@ import { t } from "../i18n/i18n";
 
 
 export async function renderDashboard() {
-  const sales = await getAllSales();
+  const sales          = await getAllSales();
+  const itemSales      = sales.filter(s => s.accountType === "ITEM_SALE");
+  const totalSales     = itemSales.reduce((s, x) => s + (x.amount || 0), 0);
+  const creditTotal    = itemSales.filter(s => s.paymentMethod === "credit").reduce((s, x) => s + (x.amount || 0), 0);
+  const transactionCount = itemSales.length;
+  const todayProfit    = await getTodayProfit();
+  const mhi            = await calculateMerchantHealthIndex();
+  const insights       = await generateSmartInsights();
 
-  /*==============================
-      True Business Metrics
-  ==============================*/
-  //only goods sold count as sales, not returns or exchanges
-  const itemSales = sales.filter(s => s.accountType === "ITEM_SALE");
-
-  //Total revenue genrated from the selling prodicts
-  const totalSales = itemSales.reduce((s, x) => s + (x.amount || 0), 0);
-
-  //only unpaid goods
-
-  const creditTotal = itemSales
-    .filter(s => s.paymentMethod === "credit")
-    .reduce((s, x) => s + (x.amount || 0), 0);
-    //Actual Purchase event (not loan / advance / settlement)
-    const transactionCount = itemSales.length;
-
-  // ✅ TODAY'S PROFIT (shop profit only)
-  const todayProfit = await getTodayProfit();
-
-  // ✅ BUSINESS / MERCHANT CREDIT HEALTH
-  const mhi = await calculateMerchantHealthIndex();
-
-  const insights = await generateSmartInsights();
+  const mhiColor = mhi.score >= 70 ? "#22c55e" : mhi.score >= 40 ? "#f59e0b" : "#ef4444";
 
   const content = `
     <section class="dashboard">
-      <h1>${t("dashboard.title")}</h1>
-
-      <div class="dashboard-actions">
+      <div class="page-header">
+        <div>
+          <h1>${t("dashboard.title")}</h1>
+          <p class="page-subtitle">Here's what's happening at your store today</p>
+        </div>
         <button id="view-summary" class="btn-secondary">
           📊 ${t("dashboard.viewSummary")}
         </button>
       </div>
 
-      <div class="cards">
-        <div class="card">
-          <p>${t("dashboard.totalSales")}</p>
-          <h2>₹${totalSales}</h2>
+      <div class="kpi-grid">
+
+        <div class="kpi-card">
+          <div class="kpi-icon" style="background:rgba(34,197,94,0.12);color:#22c55e">💰</div>
+          <div class="kpi-body">
+            <p class="kpi-label">${t("dashboard.totalSales")}</p>
+            <h2 class="kpi-value" data-val="${totalSales}">₹${totalSales}</h2>
+          </div>
         </div>
 
-        <div class="card">
-          <p>${t("dashboard.transactions")}</p>
-          <h2>${transactionCount}</h2>
+        <div class="kpi-card">
+          <div class="kpi-icon" style="background:rgba(99,102,241,0.12);color:#818cf8">🛍️</div>
+          <div class="kpi-body">
+            <p class="kpi-label">${t("dashboard.transactions")}</p>
+            <h2 class="kpi-value" data-val="${transactionCount}">${transactionCount}</h2>
+          </div>
         </div>
 
-        <div class="card">
-          <p>${t("dashboard.creditSales")}</p>
-          <h2>₹${creditTotal}</h2>
+        <div class="kpi-card">
+          <div class="kpi-icon" style="background:rgba(245,158,11,0.12);color:#f59e0b">💳</div>
+          <div class="kpi-body">
+            <p class="kpi-label">${t("dashboard.creditSales")}</p>
+            <h2 class="kpi-value" data-val="${creditTotal}">₹${creditTotal}</h2>
+          </div>
         </div>
 
-        <div class="card">
-          <p>${t("dashboard.todayProfit")}</p>
-          <h2>₹${todayProfit}</h2>
+        <div class="kpi-card">
+          <div class="kpi-icon" style="background:rgba(20,184,166,0.12);color:#14b8a6">📈</div>
+          <div class="kpi-body">
+            <p class="kpi-label">${t("dashboard.todayProfit")}</p>
+            <h2 class="kpi-value" data-val="${todayProfit}">₹${todayProfit}</h2>
+          </div>
         </div>
 
-        <div class="card">
-          <p>${t("dashboard.creditHealth")}</p>
-          <h2>${mhi.score}</h2>
-          <small>${mhi.label}</small>
+        <div class="kpi-card">
+          <div class="kpi-icon" style="background:rgba(239,68,68,0.12);color:${mhiColor}">⭐</div>
+          <div class="kpi-body">
+            <p class="kpi-label">${t("dashboard.creditHealth")}</p>
+            <h2 class="kpi-value" style="color:${mhiColor}" data-val="${mhi.score}">${mhi.score}</h2>
+            <span class="kpi-badge">${mhi.label}</span>
+          </div>
         </div>
 
-        <div class="card">
-          <p>${t("dashboard.insights")}</p>
-          <ul>
-            ${insights.map(i => `<li>${i}</li>`).join("")}
-          </ul>
+        <div class="kpi-card kpi-card--insights">
+          <div class="kpi-icon" style="background:rgba(99,102,241,0.12);color:#818cf8">🤖</div>
+          <div class="kpi-body">
+            <p class="kpi-label">${t("dashboard.insights")}</p>
+            <ul class="insights-list">
+              ${insights.map(i => `<li>${i}</li>`).join("")}
+            </ul>
+          </div>
         </div>
+
       </div>
     </section>
   `;
@@ -88,22 +94,16 @@ export async function renderDashboard() {
   if (!document.querySelector(".dashboard")) return;
 
   document.getElementById("view-summary").onclick = async () => {
-   const summary = await getDailySummary();
-
-   document.body.insertAdjacentHTML(
-     "beforeend",
-     renderDailySummary(summary)
-    );
-
-   document.getElementById("close-summary").onclick = () => {
-     document.querySelector(".daily-summary-overlay").remove();
+    const summary = await getDailySummary();
+    document.body.insertAdjacentHTML("beforeend", renderDailySummary(summary));
+    document.getElementById("close-summary").onclick = () => {
+      document.querySelector(".daily-summary-overlay").remove();
     };
   };
 
-
-  // ✅ NUMBER ANIMATION (unchanged logic)
-  document.querySelectorAll(".card h2").forEach(el => {
-    const v = parseInt(el.textContent.replace(/\D/g, ""));
-    if (!isNaN(v)) animateNumber(el, v);
+  // Number animation on KPI values
+  document.querySelectorAll(".kpi-value[data-val]").forEach(el => {
+    const v = parseInt(el.dataset.val.replace(/\D/g, ""));
+    if (!isNaN(v) && v > 0) animateNumber(el, v);
   });
 }

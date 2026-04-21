@@ -10,11 +10,15 @@ export function buildSyncText(online) {
 
 export async function renderLayout(contentHtml) {
   const user      = await getCurrentUser();
-  const role      = user?.role;
+  const role      = user?.role  || "owner";
+  const name      = user?.name  || user?.username || "User";
   const isOwner   = role === "owner";
   const isManager = role === "manager";
   const isCashier = role === "cashier";
   const online    = navigator.onLine;
+
+  // Initials for avatar
+  const initials = name.split(" ").map(w => w[0]).join("").slice(0,2).toUpperCase() || "U";
 
   return `
     <div class="app-layout">
@@ -22,7 +26,7 @@ export async function renderLayout(contentHtml) {
       <!-- ── MOBILE HEADER ── -->
       <div class="mobile-header">
         <button id="menu-toggle" class="menu-btn" aria-label="Open menu">☰</button>
-        <div class="app-title">Kirana POS</div>
+        <div class="app-title">🛒 Kirana POS</div>
         <div class="sync-mini" id="sync-mini-dot">${online ? "🟢" : "🟠"}</div>
       </div>
 
@@ -34,30 +38,98 @@ export async function renderLayout(contentHtml) {
 
       <!-- ── DESKTOP SIDEBAR ── -->
       <aside class="sidebar">
-        <h2 class="logo">Kirana POS</h2>
+
+        <!-- Brand Header -->
+        <div class="sidebar-brand">
+          <div class="sidebar-brand-icon">🛒</div>
+          <div class="sidebar-brand-text">
+            <span class="sidebar-brand-name">Kirana POS</span>
+            <span class="sidebar-brand-sub">Management System</span>
+          </div>
+        </div>
+
         <nav>
+          <!-- Language Switcher -->
           <div class="lang-switch">
             <button data-lang="en">EN</button>
             <button data-lang="hi">हिं</button>
             <button data-lang="hing">HING</button>
           </div>
 
-          <a href="#" data-page="dashboard">${t("sidebar.dashboard")}</a>
-          <a href="#" data-page="add-sale">${t("sidebar.addSale")}</a>
+          <!-- MAIN NAV -->
+          <div class="nav-section-label">Main</div>
+          <a href="#" data-page="dashboard">
+            <span class="nav-icon">📊</span>${t("sidebar.dashboard")}
+          </a>
+          <a href="#" data-page="add-sale">
+            <span class="nav-icon">🛍️</span>${t("sidebar.addSale")}
+          </a>
 
-          ${!isCashier ? `<a href="#" data-page="stock">${t("sidebar.stock")}</a>` : ""}
-          ${!isCashier ? `<a href="#" data-page="reports">${t("sidebar.reports")}</a>` : ""}
-          ${!isCashier ? `<a href="#" data-page="credit">${t("sidebar.creditScore")}</a>` : ""}
-          ${!isCashier ? `<a href="#" data-page="ledger">${t("sidebar.creditLedger")}</a>` : ""}
-          ${(isOwner || isManager) ? `<a href="#" data-page="credit-loan">💸 ${t("sidebar.creditLoan")}</a>` : ""}
+          <!-- INVENTORY -->
+          ${!isCashier ? `
+          <div class="sidebar-divider"></div>
+          <div class="nav-section-label">Inventory</div>
+          <a href="#" data-page="stock">
+            <span class="nav-icon">📦</span>${t("sidebar.stock")}
+          </a>
+          <a href="#" data-page="bill-scanner">
+            <span class="nav-icon">📷</span>AI Bill Scanner
+          </a>
+          ` : ""}
 
-          ${isOwner ? `<a href="#" data-page="manage-staff">${t("sidebar.manageStaff")}</a>` : ""}
-          ${isOwner ? `<a href="#" data-page="audit-log">${t("sidebar.auditLog")}</a>` : ""}
-          ${isOwner ? `<a href="#" data-page="shop-settings">${t("sidebar.shopSettings")}</a>` : ""}
-          ${isOwner ? `<a href="#" data-page="coupon-manager">🎟️ ${t("sidebar.coupons")}</a>` : ""}
+          <!-- FINANCE -->
+          ${!isCashier ? `
+          <div class="sidebar-divider"></div>
+          <div class="nav-section-label">Finance</div>
+          <a href="#" data-page="reports">
+            <span class="nav-icon">📈</span>${t("sidebar.reports")}
+          </a>
+          <a href="#" data-page="credit">
+            <span class="nav-icon">⭐</span>${t("sidebar.creditScore")}
+          </a>
+          <a href="#" data-page="ledger">
+            <span class="nav-icon">📒</span>${t("sidebar.creditLedger")}
+          </a>
+          ${(isOwner || isManager) ? `
+          <a href="#" data-page="credit-loan">
+            <span class="nav-icon">💸</span>${t("sidebar.creditLoan")}
+          </a>` : ""}
+          ` : ""}
 
-          <a href="#" data-page="logout" class="logout-link">${t("sidebar.logout")}</a>
+          <!-- ADMIN -->
+          ${isOwner ? `
+          <div class="sidebar-divider"></div>
+          <div class="nav-section-label">Admin</div>
+          <a href="#" data-page="manage-staff">
+            <span class="nav-icon">👥</span>${t("sidebar.manageStaff")}
+          </a>
+          <a href="#" data-page="coupon-manager">
+            <span class="nav-icon">🎟️</span>${t("sidebar.coupons")}
+          </a>
+          <a href="#" data-page="audit-log">
+            <span class="nav-icon">🔍</span>${t("sidebar.auditLog")}
+          </a>
+          <a href="#" data-page="shop-settings">
+            <span class="nav-icon">⚙️</span>${t("sidebar.shopSettings")}
+          </a>
+          ` : ""}
+
+          <!-- LOGOUT -->
+          <div class="sidebar-divider"></div>
+          <a href="#" data-page="logout" class="logout-link">
+            <span class="nav-icon">🚪</span>${t("sidebar.logout")}
+          </a>
         </nav>
+
+        <!-- User Footer -->
+        <div class="sidebar-user-footer">
+          <div class="sidebar-user-avatar">${initials}</div>
+          <div class="sidebar-user-info">
+            <div class="sidebar-user-name">${name}</div>
+            <div class="sidebar-user-role">${role}</div>
+          </div>
+        </div>
+
       </aside>
 
       <!-- ── RIGHT PANEL: status bar + content ── -->

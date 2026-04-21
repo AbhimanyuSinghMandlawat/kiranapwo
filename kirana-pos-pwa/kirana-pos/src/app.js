@@ -104,8 +104,9 @@ export async function navigate(rawPage, skipHashUpdate = false) {
     const users = await getAllUsers();
     const ownerExists = users.some(u => u.role === "owner");
 
+    // Always respect user's explicit navigation intent
     if (page === "owner-setup") {
-      ownerExists ? renderLogin(app) : renderOwnerSetup(app);
+      renderOwnerSetup(app);   // always show registration (not login)
       return;
     }
 
@@ -126,10 +127,12 @@ export async function navigate(rawPage, skipHashUpdate = false) {
       return;
     }
 
+    // Default: Welcome screen for all unauthenticated users
     app.innerHTML = Welcome();
     attachNavEvents();
     return;
   }
+
 
 
   /* =====================================================

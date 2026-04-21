@@ -90,11 +90,15 @@ async function tryBackendLogin(username, password) {
   }
 }
 
-export async function createOwnerAccount({ name, username, password, phone }) {
+export async function createOwnerAccount({ name, username, password, phone, email, shopName }) {
   const existing = await getUserByUsername(username);
 
   if (existing) {
-    throw new Error("User already exists");
+    throw new Error("An account with this phone number already exists");
+  }
+
+  if (!password || password.length < 6) {
+    throw new Error("Password must be at least 6 characters");
   }
 
   const hashed = await hashPassword(password);
@@ -102,53 +106,62 @@ export async function createOwnerAccount({ name, username, password, phone }) {
   const user = {
     id: crypto.randomUUID(),
     name,
-    username,
+    username,          // phone is username
     password: hashed,
     role: ROLES.OWNER,
+    email: email || null,
     createdAt: Date.now()
   };
 
   await saveUser(user);
 
-  // Store owner phone in settings so sync can use it for backend auth
+  // Store shop settings locally
   const existingSettings = await getShopSettings();
-  if (phone) {
-    await saveShopSettings({ ...(existingSettings || {}), ownerPhone: phone });
-  }
+  await saveShopSettings({
+    ...(existingSettings || {}),
+    ownerPhone: phone || username,
+    ownerName:  name,
+    shopName:   shopName || (name + "'s Shop"),
+    ownerEmail: email || null
+  });
 
-  // ✅ FIX 4: Register on backend + get JWT so sync can work
-  await tryBackendRegisterAndLogin({ name, username, password, phone });
+  // Register on backend + get JWT (non-blocking)
+  await tryBackendRegisterAndLogin({ name, username, password, phone, email, shopName });
 }
+
 
 /* -------------------------------------------------------
    Register shop on backend (once) and store JWT token.
    Called during createOwnerAccount – fails silently if offline.
 ------------------------------------------------------- */
-async function tryBackendRegisterAndLogin({ name, username, password, phone }) {
+async function tryBackendRegisterAndLogin({ name, username, password, phone, email, shopName }) {
   try {
     if (!navigator.onLine) return;
+
+    const ownerPhone = phone || username;
 
     // Step 1: Register on backend
     const regRes = await fetch(`${BACKEND}/api/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        shop_name:    name + "'s Shop",
+        shop_name:    shopName || (name + "'s Shop"),
         owner_name:   name,
-        owner_phone:  phone || username,
+        owner_phone:  ownerPhone,
+        owner_email:  email || null,
         password
       }),
       signal: AbortSignal.timeout(5000)
     });
 
-    // 409 = already registered (phone taken) — try to login anyway
+    // 409 = already registered — try to login anyway
     if (!regRes.ok && regRes.status !== 409) return;
 
     // Step 2: Login to get JWT
     const loginRes = await fetch(`${BACKEND}/api/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ owner_phone: phone || username, password }),
+      body: JSON.stringify({ owner_phone: ownerPhone, password }),
       signal: AbortSignal.timeout(5000)
     });
 
@@ -168,6 +181,7 @@ async function tryBackendRegisterAndLogin({ name, username, password, phone }) {
     console.warn("[Auth] Backend registration failed (offline?) – local only:", e.message);
   }
 }
+
 
 export async function login(username, password) {
   const user = await getUserByUsername(username);

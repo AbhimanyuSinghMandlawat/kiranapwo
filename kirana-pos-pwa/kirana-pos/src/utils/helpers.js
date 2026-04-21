@@ -21,3 +21,19 @@ export function searchStock(stockList, query) {
   // 3️⃣ Merge + limit
   return [...startsWith, ...includes].slice(0, 5);
 }
+
+// ===============================
+// XSS SANITIZATION (OWASP)
+// ===============================
+export function escapeHTML(str) {
+  if (typeof str !== 'string' || !str) return str || '';
+  return str.replace(/[&<>'"]/g, 
+    tag => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      "'": '&#39;',
+      '"': '&quot;'
+    }[tag] || tag)
+  );
+}
