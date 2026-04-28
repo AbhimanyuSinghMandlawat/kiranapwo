@@ -10,7 +10,8 @@ import {
 
 import { ROLES } from "./roles";
 import { logAudit } from "../services/auditLog";
-import { API_BASE } from "../config";
+
+const API_BASE = "http://localhost:5000";
 
 // Simple hashing for local auth
 async function hashPassword(password) {
@@ -80,7 +81,7 @@ async function tryBackendLogin(username, password) {
         backendToken: data.token,
         backendShopId: data.shop?.id || null
       });
-      console.log("[Auth] Backend token obtained – sync enabled");
+      console.log("[Auth] Backend token obtained - sync enabled");
     }
   } catch (e) {
     console.warn("[Auth] Backend login failed (offline?):", e.message);
@@ -140,7 +141,7 @@ export async function createOwnerAccount({
 
 /* -------------------------------------------------------
    Register shop on backend (once) and store JWT token.
-   Called during createOwnerAccount – fails silently if offline.
+   Called during createOwnerAccount - fails silently if offline.
 ------------------------------------------------------- */
 async function tryBackendRegisterAndLogin({
   name,
@@ -188,10 +189,10 @@ async function tryBackendRegisterAndLogin({
         backendToken: data.token,
         backendShopId: data.shop?.id || null
       });
-      console.log("[Auth] Backend token obtained ✅");
+      console.log("[Auth] Backend token obtained");
     }
   } catch (e) {
-    console.warn("[Auth] Backend registration failed (offline?) – local only:", e.message);
+    console.warn("[Auth] Backend registration failed (offline?) - local only:", e.message);
   }
 }
 

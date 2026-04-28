@@ -3,7 +3,8 @@ import { showToast } from "../utils/toast";
 import { getSyncStats } from "../services/syncService";
 import { t } from "../i18n/i18n";
 import QRCode from "qrcode";
-import { API_BASE } from "../config";
+
+const API_BASE = "http://localhost:5000";
 
 export async function renderShopSettings(container) {
   const mc = document.querySelector(".main-content") || container;
@@ -12,7 +13,6 @@ export async function renderShopSettings(container) {
 
   mc.innerHTML = `
     <section class="shop-settings">
-
       <div class="glass-card" style="margin-bottom:20px">
         <h1>${t("sidebar.shopSettings")}</h1>
 
