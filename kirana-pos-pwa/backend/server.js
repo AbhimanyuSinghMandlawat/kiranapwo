@@ -1,4 +1,4 @@
-require("dotenv").config();
+﻿require("dotenv").config();
 
 const express  = require("express");
 const cors     = require("cors");
@@ -9,6 +9,9 @@ const multer   = require("multer");
 const path     = require("path");
 const fs       = require("fs");
 const nodemailer = require("nodemailer");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 const app = express();
 
@@ -30,7 +33,7 @@ const JWT_SECRET = process.env.JWT_SECRET || "kirana_super_secret_change_me";
 const PORT       = process.env.PORT || 5000;
 
 /* ===============================
-   MULTER – file uploads (bill scanner)
+   MULTER Ã¢â‚¬â€œ file uploads (bill scanner)
 =============================== */
 const upload = multer({
   dest: path.join(__dirname, "uploads"),
@@ -128,7 +131,7 @@ async function sendWhatsAppNotification(message) {
     //   from: `whatsapp:${process.env.TWILIO_WHATSAPP_FROM}`,
     //   to:   `whatsapp:${process.env.NOTIFY_WHATSAPP_TO}`
     // });
-    return { sent: false, reason: "Twilio integration pending – add credentials to .env" };
+    return { sent: false, reason: "Twilio integration pending Ã¢â‚¬â€œ add credentials to .env" };
   } catch (err) {
     console.error("[WHATSAPP ERROR]", err.message);
     return { sent: false, reason: err.message };
@@ -146,6 +149,30 @@ app.get("/api/ping", (req, res) => {
     res.json({ status: "ok", time: new Date().toISOString() });
   });
 });
+
+/* ===============================
+   SECURITY: RATE LIMITING
+=============================== */
+const rateLimitMap = new Map();
+function rateLimit(limit, windowMs) {
+  return (req, res, next) => {
+    const ip = req.ip || req.connection.remoteAddress;
+    const now = Date.now();
+    let entry = rateLimitMap.get(ip);
+    if (!entry || now > entry.resetTime) {
+      entry = { count: 0, resetTime: now + windowMs };
+    }
+    entry.count++;
+    rateLimitMap.set(ip, entry);
+    if (entry.count > limit) {
+      return res.status(429).json({ message: "Too many requests. Please try again later." });
+    }
+    next();
+  };
+}
+
+const loginLimiter = rateLimit(10, 60 * 1000); // 10 attempts / min
+const scanLimiter  = rateLimit(5,  60 * 1000); // 5 scans / min
 
 /* ===============================
    REGISTER SHOP
@@ -173,7 +200,7 @@ app.post("/api/register", async (req, res) => {
   }
 });
 
-// Alias: /api/auth/register → same as /api/register
+// Alias: /api/auth/register Ã¢â€ â€™ same as /api/register
 app.post("/api/auth/register", (req, res, next) => {
   req.url = "/api/register";
   app.handle(req, res, next);
@@ -183,7 +210,7 @@ app.post("/api/auth/register", (req, res, next) => {
 /* ===============================
    LOGIN
 =============================== */
-app.post("/api/login", async (req, res) => {
+app.post("/api/login", loginLimiter, async (req, res) => {
   const { owner_phone, password } = req.body;
   try {
     const rows = await query("SELECT * FROM shops WHERE owner_phone = ?", [owner_phone]);
@@ -229,7 +256,7 @@ app.put("/api/shop-profile", auth, async (req, res) => {
 });
 
 /* ===============================
-   SALES  (upsert – idempotent)
+   SALES  (upsert Ã¢â‚¬â€œ idempotent)
 =============================== */
 app.post("/api/sales", auth, async (req, res) => {
   const s       = req.body;
@@ -371,11 +398,11 @@ app.post("/api/coupons", auth, async (req, res) => {
 
   if (!c.id) return res.status(400).json({ message: "Missing coupon id" });
 
-  // Cap discount: max 50% for percent-type, max ₹500 for flat-₹ type
+  // Cap discount: max 50% for percent-type, max Ã¢â€šÂ¹500 for flat-Ã¢â€šÂ¹ type
   const rawValue  = parseFloat(c.value) || 0;
   const safeValue = (c.type === "percent")
     ? Math.min(rawValue, 50)   // max 50% off
-    : Math.min(rawValue, 500); // max ₹500 flat off
+    : Math.min(rawValue, 500); // max Ã¢â€šÂ¹500 flat off
 
   try {
     await query(
@@ -507,7 +534,7 @@ app.post("/api/daily-summary", auth, async (req, res) => {
 
     const emailBody = buildSummaryEmailHTML(s, shop);
     const emailResult = await sendEmailNotification(
-      `📊 Daily Summary – ${s.summaryDate} – ${shop.shop_name || "Your Shop"}`,
+      `Ã°Å¸â€œÅ  Daily Summary Ã¢â‚¬â€œ ${s.summaryDate} Ã¢â‚¬â€œ ${shop.shop_name || "Your Shop"}`,
       emailBody
     );
 
@@ -551,20 +578,20 @@ app.get("/api/daily-summary", auth, async (req, res) => {
 function buildSummaryEmailHTML(s, shop) {
   return `
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:20px;background:#f9f9f9;border-radius:10px">
-      <h2 style="color:#2e7d32">📊 Daily Business Summary</h2>
-      <h3>${shop.shop_name || "Your Kirana Shop"} — ${s.summaryDate}</h3>
+      <h2 style="color:#2e7d32">Ã°Å¸â€œÅ  Daily Business Summary</h2>
+      <h3>${shop.shop_name || "Your Kirana Shop"} Ã¢â‚¬â€ ${s.summaryDate}</h3>
       <table style="width:100%;border-collapse:collapse">
-        <tr style="background:#e8f5e9"><td style="padding:8px"><strong>Total Sales</strong></td><td>₹${(s.totalSales||0).toFixed(2)}</td></tr>
-        <tr><td style="padding:8px"><strong>Today's Profit</strong></td><td>₹${(s.profit||0).toFixed(2)}</td></tr>
+        <tr style="background:#e8f5e9"><td style="padding:8px"><strong>Total Sales</strong></td><td>Ã¢â€šÂ¹${(s.totalSales||0).toFixed(2)}</td></tr>
+        <tr><td style="padding:8px"><strong>Today's Profit</strong></td><td>Ã¢â€šÂ¹${(s.profit||0).toFixed(2)}</td></tr>
         <tr style="background:#e8f5e9"><td style="padding:8px"><strong>Transactions</strong></td><td>${s.transactions||0}</td></tr>
-        <tr><td style="padding:8px"><strong>Credit Given</strong></td><td>₹${(s.creditGiven||0).toFixed(2)}</td></tr>
-        <tr style="background:#e8f5e9"><td style="padding:8px"><strong>Cash Sales</strong></td><td>₹${(s.cashTotal||0).toFixed(2)}</td></tr>
-        <tr><td style="padding:8px"><strong>UPI Sales</strong></td><td>₹${(s.upiTotal||0).toFixed(2)}</td></tr>
-        <tr style="background:#e8f5e9"><td style="padding:8px"><strong>Card Sales</strong></td><td>₹${(s.cardTotal||0).toFixed(2)}</td></tr>
+        <tr><td style="padding:8px"><strong>Credit Given</strong></td><td>Ã¢â€šÂ¹${(s.creditGiven||0).toFixed(2)}</td></tr>
+        <tr style="background:#e8f5e9"><td style="padding:8px"><strong>Cash Sales</strong></td><td>Ã¢â€šÂ¹${(s.cashTotal||0).toFixed(2)}</td></tr>
+        <tr><td style="padding:8px"><strong>UPI Sales</strong></td><td>Ã¢â€šÂ¹${(s.upiTotal||0).toFixed(2)}</td></tr>
+        <tr style="background:#e8f5e9"><td style="padding:8px"><strong>Card Sales</strong></td><td>Ã¢â€šÂ¹${(s.cardTotal||0).toFixed(2)}</td></tr>
       </table>
       ${(s.topItems||[]).length > 0 ? `
-        <h4>🏆 Top Selling Items</h4>
-        <ul>${(s.topItems||[]).map(i => `<li>${i.name} — ${i.qtySold} units sold</li>`).join("")}</ul>
+        <h4>Ã°Å¸Ââ€  Top Selling Items</h4>
+        <ul>${(s.topItems||[]).map(i => `<li>${i.name} Ã¢â‚¬â€ ${i.qtySold} units sold</li>`).join("")}</ul>
       ` : ""}
       <p style="color:#888;font-size:12px;margin-top:20px">Sent automatically by Kirana POS at shop closing time.</p>
     </div>
@@ -572,21 +599,24 @@ function buildSummaryEmailHTML(s, shop) {
 }
 
 function buildSummaryWhatsApp(s, shop) {
-  return `📊 *Daily Summary* — ${s.summaryDate}
-🏪 ${shop.shop_name || "Your Shop"}
-━━━━━━━━━━━━━━━
-💰 Total Sales: ₹${(s.totalSales||0).toFixed(2)}
-📈 Profit: ₹${(s.profit||0).toFixed(2)}
-🛒 Transactions: ${s.transactions||0}
-💳 Credit Given: ₹${(s.creditGiven||0).toFixed(2)}
-━━━━━━━━━━━━━━━
-Cash: ₹${(s.cashTotal||0).toFixed(2)} | UPI: ₹${(s.upiTotal||0).toFixed(2)} | Card: ₹${(s.cardTotal||0).toFixed(2)}
-Have a great evening! 🙏`;
+  return `ðŸ“Š *Daily Summary* â€” ${s.summaryDate}
+ðŸª ${shop.shop_name || "Your Shop"}
+â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”
+ðŸ’° Total Sales: â‚¹${(s.totalSales||0).toFixed(2)}
+ðŸ“ˆ Profit: â‚¹${(s.profit||0).toFixed(2)}
+ðŸ›’ Transactions: ${s.transactions||0}
+ðŸ’³ Credit Given: â‚¹${(s.creditGiven||0).toFixed(2)}
+â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”
+Cash: â‚¹${(s.cashTotal||0).toFixed(2)} | UPI: â‚¹${(s.upiTotal||0).toFixed(2)} | Card: â‚¹${(s.cardTotal||0).toFixed(2)}
+Have a great evening! ðŸ™`;
 }
 
 /* ===============================
-   AI BILL SCANNER  (Tesseract OCR + Smart Parsing)
+/* ===============================
+   AI BILL SCANNER — Tesseract OCR (100% free, no rate limits, no API)
 =============================== */
+const { parseBill } = require("./billParser");
+
 app.post("/api/scan-bill", auth, upload.single("bill"), async (req, res) => {
   if (!req.file)
     return res.status(400).json({ message: "No image uploaded" });
@@ -594,246 +624,168 @@ app.post("/api/scan-bill", auth, upload.single("bill"), async (req, res) => {
   const filePath = req.file.path;
 
   try {
-    // Dynamically import Tesseract.js (ESM compatible)
-    const Tesseract = require("tesseract.js");
+    console.log("[BILL SCAN] OCR processing:", req.file.originalname,
+      `(${(req.file.size / 1024).toFixed(0)} KB)`);
 
-    console.log("[BILL SCAN] Starting OCR on:", req.file.originalname);
+    const result = await parseBill(filePath);
 
-    const { data } = await Tesseract.recognize(filePath, "eng", {
-      logger: m => {
-        if (m.status === "recognizing text") {
-          process.stdout.write(`\r[OCR] Progress: ${Math.round(m.progress * 100)}%`);
-        }
-      }
-    });
+    if (!result.readable || result.rawOcrLines < 3) {
+      fs.unlink(filePath, () => {});
+      return res.status(422).json({
+        message: "📷 Could not read text from image — please use a clearer, well-lit photo.",
+        errorCode: "IMAGE_UNREADABLE"
+      });
+    }
 
-    console.log("\n[BILL SCAN] OCR complete. Parsing...");
+    if (result.inventory_items.length === 0 && result.confidence < 20) {
+      fs.unlink(filePath, () => {});
+      return res.status(422).json({
+        message: "📷 Could not extract bill data — please upload a clearer image.",
+        errorCode: "LOW_CONFIDENCE",
+        confidence: result.confidence,
+        imageQuality: result.imageQuality
+      });
+    }
 
-    const rawText = data.text;
-    const result  = parseBillText(rawText);
-
-    // Save the scan result to DB
+    // Save to DB (non-blocking)
+    const scanId = require("crypto").randomUUID();
     const shop_id = req.shop.shop_id;
-    const scanId  = require("crypto").randomUUID();
-
-    await query(
+    query(
       `INSERT INTO bill_scans
-         (id, shop_id, gst_number, bill_number, supplier_name,
-          supplier_mobile, raw_text, items_json, confidence)
+         (id, shop_id, gst_number, bill_number, supplier_name, supplier_mobile, raw_text, items_json, confidence)
        VALUES (?,?,?,?,?,?,?,?,?)`,
       [
         scanId, shop_id,
-        result.gstNumber      || null,
-        result.billNumber     || null,
-        result.supplierName   || null,
-        result.supplierMobile || null,
-        rawText,
-        JSON.stringify(result.items),
+        result.supplier.gst_number,
+        result.bill.bill_number,
+        result.supplier.name || result.supplier.business_name,
+        result.supplier.mobile,
+        `OCR:${result.rawOcrLines} lines`,
+        JSON.stringify(result.inventory_items),
         result.confidence
       ]
-    );
+    ).catch(e => console.warn("[BILL SCAN] DB save (non-fatal):", e.message));
 
-    // Clean up uploaded file
     fs.unlink(filePath, () => {});
+    console.log(`[BILL SCAN] Done — Items:${result.inventory_items.length} Confidence:${result.confidence}% OCR lines:${result.rawOcrLines}`);
 
-    res.json({
-      ...result,
-      scanId,
-      rawText: rawText.substring(0, 500) // send preview only
-    });
+    const { rawOcrLines, readable, ...clean } = result;
+    res.json({ ...clean, scanId });
 
   } catch (err) {
-    console.error("[BILL SCAN ERROR]", err);
     fs.unlink(filePath, () => {});
-    res.status(500).json({ message: "OCR failed", detail: err.message });
+    console.error("[BILL SCAN ERROR]", err.message);
+    res.status(500).json({
+      message: `Scan failed: ${err.message}`,
+      errorCode: "SCAN_FAILED"
+    });
   }
 });
 
-/**
- * parseBillText – Smart multi-strategy parser for Indian invoices.
- * Strategy 1: Table-based parsing (finds header row, extracts items as columns)
- * Strategy 2: Line-by-line flexible extraction
- * Strategy 3: Fallback number pattern detection
- */
-function parseBillText(text) {
-  const lines = text.split("\n").map(l => l.trim()).filter(Boolean);
+app.post("/api/suppliers", auth, async (req, res) => {
+  const s       = req.body;
+  const shop_id = req.shop.shop_id;
+  if (!s.name) return res.status(400).json({ message: "Supplier name required" });
 
-  // ── GST Number ──
-  const gstMatch = text.match(/\b(\d{2}[A-Z]{5}\d{4}[A-Z]{1}[A-Z\d]{1}[Z]{1}[A-Z\d]{1})\b/i);
-  const gstNumber = gstMatch ? gstMatch[1].toUpperCase() : null;
-
-  // ── Bill / Invoice Number ──
-  const billMatch = text.match(/(?:invoice\s*no\.?|inv\s*no\.?|bill\s*no\.?|receipt\s*no\.?)[\s:.#]*([A-Z0-9\-\/]+)/i)
-                 || text.match(/\bIN-?(\d+)/i)
-                 || text.match(/\bINV[-#]?(\d+)/i);
-  const billNumber = billMatch ? billMatch[1].trim() : null;
-
-  // ── Supplier Name ──
-  let supplierName = null;
-  // First: look for known keywords
-  const snPatterns = [
-    /(?:from|sold by|supplier|vendor|billed by|bill from)[:\s]+([A-Za-z][A-Za-z0-9\s&.,'-]{2,79})/i,
-    /^([A-Z][A-Z\s&.'-]+(KIRANA|STORE|MART|TRADERS|ENTERPRISE|WHOLESALE|DISTRIBUTOR|AGENCY|INDUSTRIES|CO\.|LTD|PVT|SUPPLIER))/im
-  ];
-  for (const p of snPatterns) {
-    const m = text.match(p); if (m) { supplierName = m[1].trim().substring(0, 80); break; }
-  }
-  // Fallback: first line that looks like a business name (not a label, not all digits)
-  if (!supplierName) {
-    const candidate = lines.find(l =>
-      l.length > 4 && l.length < 70 &&
-      /[A-Za-z]{3}/.test(l) &&
-      !/^(s\.?no|sn|item|qty|rate|amount|total|date|tax|gst|invoice|bill|phone|mobile|gstin|address|ship|pay)/i.test(l) &&
-      !/^\d+(\s|$)/.test(l)
+  try {
+    const id = s.id || require("crypto").randomUUID();
+    await query(
+      `INSERT INTO suppliers (id, shop_id, name, business_name, mobile, gst_number, address)
+       VALUES (?,?,?,?,?,?,?)
+       ON DUPLICATE KEY UPDATE
+         name          = VALUES(name),
+         business_name = VALUES(business_name),
+         mobile        = VALUES(mobile),
+         gst_number    = VALUES(gst_number)`,
+      [id, shop_id, s.name, s.business_name || null, s.mobile || null, s.gst_number || null, s.address || null]
     );
-    if (candidate) supplierName = candidate.substring(0, 80);
+    res.json({ message: "Supplier saved", id });
+  } catch (err) {
+    console.error("[SUPPLIER]", err);
+    res.status(500).json({ message: "DB error", detail: err.message });
   }
+});
 
-  // ── Supplier Mobile ──
-  const mobileMatch = text.match(/(?:mob(?:ile)?|tel|ph(?:one)?|contact|\bph\b)[:\s]*(\+?91[\-\s]?)?([6-9]\d{9})/i)
-                   || text.match(/(?<![\d])(\+91[\-\s]?)?([6-9]\d{9})(?![\d])/);
-  const supplierMobile = mobileMatch ? (mobileMatch[2] || mobileMatch[1]) : null;
-
-  // ════════════════════════════════════
-  //  ITEM EXTRACTION  (Primary: Table detection)
-  // ════════════════════════════════════
-  let items = [];
-
-  // ─── Strategy 1: Detect table header row and parse below it ───
-  // Find the header line containing S.No / SN / Sr. along with ITEMS / QTY / RATE / AMOUNT
-  let headerIdx = -1;
-  let colMap = {}; // column name → regex/position
-
-  for (let i = 0; i < lines.length; i++) {
-    const l = lines[i].toLowerCase();
-    const hasItemCol  = /\b(items?|description|particulars|product|goods)\b/.test(l);
-    const hasQtyCol   = /\b(qty|quantity|units?)\b/.test(l);
-    const hasRateCol  = /\b(rate|price|mrp|unit\s*price)\b/.test(l);
-    const hasAmtCol   = /\b(amount|amt|total)\b/.test(l);
-    const hasSerial   = /\b(s\.?no|sr\b|sn\b|s\/no)/.test(l);
-
-    if ((hasItemCol || hasSerial) && (hasQtyCol || hasRateCol || hasAmtCol)) {
-      headerIdx = i;
-      break;
-    }
+app.get("/api/suppliers", auth, async (req, res) => {
+  const shop_id = req.shop.shop_id;
+  try {
+    const rows = await query("SELECT * FROM suppliers WHERE shop_id=? ORDER BY name ASC", [shop_id]);
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ message: "DB error" });
   }
+});
 
-  if (headerIdx >= 0) {
-    // Parse lines below the header until we hit TOTAL/SUBTOTAL/end
-    for (let i = headerIdx + 1; i < lines.length; i++) {
-      const line = lines[i];
-      const lc   = line.toLowerCase();
-
-      // Stop at footer lines
-      if (/^\s*(total|sub\s*total|grand\s*total|net\s*total|received|balance|terms|igst|cgst|sgst|hsncode|payment|thank|invoice amount|bank|cheque)/i.test(lc)) break;
-      if (/^[\s₹\-\.]+$/.test(line)) continue;
-
-      // Extract: line should contain at least one price/number pattern
-      // Format: [serial] [item name] [hsn?] [qty Unit] [rate] [disc?] [tax?] [amount]
-      // We find name + numbers, then pick qty=first plausible number, rate=one near the end
-      const nums = [...line.matchAll(/([\d]+(?:[.,]\d+)?)/g)].map(m => parseFloat(m[1].replace(',','')));
-
-      // Item name = everything before the first number (or serial stripped)
-      let nameRaw = line.replace(/^\d+\.?\s*/, '').replace(/([\d]+(?:[.,]\d+)?.*)/,'').trim();
-      // Strip trailing dash / hyphen that appears as HSN placeholder
-      nameRaw = nameRaw.replace(/[-–|]+\s*$/, '').trim();
-
-      if (nameRaw.length < 2 || nums.length < 2) continue;
-      if (/^(total|subtotal|grand|balance|received|tax|gst|igst|cgst|sgst|hsn|amount)/i.test(nameRaw)) continue;
-
-      // qty: look for number followed by unit like BOR / PCS / KGS / PET / LTR etc.
-      let qty = 1, price = 0;
-      const qtyMatch = line.match(/(\d+(?:\.\d+)?)\s*(?:BOR|PCS|PET|KGS?|LTR?|BOX|BAG|RLL|NOS?|PKT|MTR|GM|GMS|NO\b)/i);
-      if (qtyMatch) {
-        qty   = parseFloat(qtyMatch[1]);
-        // rate = the number right after that in the same line (skip the disc/tax cols → use AMOUNT)
-        const afterQty = line.slice(line.indexOf(qtyMatch[0]) + qtyMatch[0].length);
-        const remaining = [...afterQty.matchAll(/([\d]+(?:[.,]\d+)?)/g)].map(m => parseFloat(m[1].replace(',','')));
-        // Pick the largest plausible price from remaining (usually the line total/amount)
-        const candidates = remaining.filter(n => n > 0 && n < 1_000_000);
-        price = candidates.length > 0 ? candidates[candidates.length - 1] : 0; // rightmost = amount
-        // Recalculate rate from amount
-        if (qty > 0 && price > 0) price = Math.round((price / qty) * 100) / 100;
-      } else {
-        // Fallback: if no unit found, use the 1st number as qty, 2nd last as rate, last as total
-        if (nums.length >= 2) {
-          const possibleQty = nums[0];
-          if (possibleQty <= 100) {
-            qty = possibleQty;
-            price = nums[nums.length - 2] || nums[nums.length - 1];
-          } else {
-            qty = 1;
-            price = nums[nums.length - 1];
-          }
-        }
-      }
-
-      const name = nameRaw.substring(0, 60);
-      if (name.length >= 2 && qty > 0 && price > 0) {
-        items.push({ name, qty, price, total: Math.round(qty * price * 100) / 100 });
-      }
-    }
+app.get("/api/suppliers/:id", auth, async (req, res) => {
+  const shop_id = req.shop.shop_id;
+  try {
+    const rows = await query("SELECT * FROM suppliers WHERE id=? AND shop_id=?", [req.params.id, shop_id]);
+    rows.length ? res.json(rows[0]) : res.status(404).json({ message: "Not found" });
+  } catch (err) {
+    res.status(500).json({ message: "DB error" });
   }
+});
 
-  // ─── Strategy 2: Line-by-line flexible fallback ───
-  if (items.length === 0) {
-    const skipLine = /^(total|subtotal|grand|balance|paid|tax|gst|igst|cgst|sgst|hsn|discount|amount in words|thank|address|terms|payment|date|bill|invoice|from|to|ship|phone|mobile|gstin|upi|qr)/i;
-    for (const line of lines) {
-      if (line.length < 5) continue;
-      if (skipLine.test(line.trim())) continue;
-      if (/^[\d\s.₹,\-]+$/.test(line)) continue;
+/* ===============================
+   BILL RECORDS  (upsert / list)
+=============================== */
+app.post("/api/bill-records", auth, async (req, res) => {
+  const b       = req.body;
+  const shop_id = req.shop.shop_id;
 
-      // Try: "Name  QTY  RATE" (3 fields with numbers at end)
-      const m4 = line.match(/^(.+?)\s+(\d+(?:[.,]\d+)?)\s+(\d+(?:[.,]\d+)?)\s+(\d+(?:[.,]\d+)?)\s*$/);
-      if (m4) {
-        const name  = m4[1].trim().replace(/^\d+\.?\s*/, '');
-        const qty   = parseFloat(m4[2]);
-        const rate  = parseFloat(m4[3]);
-        if (name.length > 1 && name.length < 60 && qty > 0 && rate > 0) {
-          items.push({ name, qty, price: rate, total: qty * rate });
-          continue;
-        }
-      }
-
-      const m3 = line.match(/^(.+?)\s+(\d+(?:[.,]\d+)?)\s+(\d+(?:[.,]\d+)?)\s*$/);
-      if (m3) {
-        const name  = m3[1].trim().replace(/^\d+\.?\s*/, '');
-        const qty   = parseFloat(m3[2]);
-        const price = parseFloat(m3[3]);
-        if (name.length > 1 && name.length < 60 && qty > 0 && price > 0) {
-          items.push({ name, qty, price, total: qty * price });
-        }
-      }
-    }
+  try {
+    const id = b.id || require("crypto").randomUUID();
+    await query(
+      `INSERT INTO bill_records
+         (id, shop_id, supplier_id, bill_number, bill_date,
+          total_amount, tax_amount, payment_method, items_json, scan_id)
+       VALUES (?,?,?,?,?,?,?,?,?,?)
+       ON DUPLICATE KEY UPDATE
+         total_amount   = VALUES(total_amount),
+         items_json     = VALUES(items_json)`,
+      [
+        id, shop_id,
+        b.supplier_id    || null,
+        b.bill_number    || null,
+        b.bill_date      || null,
+        b.total_amount   || 0,
+        b.tax_amount     || 0,
+        b.payment_method || null,
+        JSON.stringify(b.items || []),
+        b.scan_id        || null
+      ]
+    );
+    res.json({ message: "Bill record saved", id });
+  } catch (err) {
+    console.error("[BILL RECORD]", err);
+    res.status(500).json({ message: "DB error", detail: err.message });
   }
+});
 
-  // De-duplicate and clean
-  const seen = new Set();
-  const cleanItems = items.filter(it => {
-    const key = it.name.toLowerCase().trim();
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-
-  // ── Confidence ──
-  let confidence = 0;
-  if (gstNumber)      confidence += 25;
-  if (billNumber)     confidence += 15;
-  if (supplierName)   confidence += 20;
-  if (supplierMobile) confidence += 10;
-  if (cleanItems.length > 0) confidence += Math.min(30, cleanItems.length * 4);
-
-  return { gstNumber, billNumber, supplierName, supplierMobile, items: cleanItems, confidence };
-}
+app.get("/api/bill-records", auth, async (req, res) => {
+  const shop_id = req.shop.shop_id;
+  try {
+    const rows = await query(
+      `SELECT br.*, s.name AS supplier_name, s.mobile AS supplier_mobile
+       FROM bill_records br
+       LEFT JOIN suppliers s ON br.supplier_id = s.id
+       WHERE br.shop_id=?
+       ORDER BY br.created_at DESC LIMIT 200`,
+      [shop_id]
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ message: "DB error" });
+  }
+});
 
 /* ===============================
    SERVER START
 =============================== */
 app.listen(PORT, () => {
-  console.log(`\n✅ Kirana POS Backend v2 running → http://localhost:${PORT}`);
-  console.log(`   DB: ${process.env.DB_NAME || "kirana_pos"} @ ${process.env.DB_HOST || "localhost"}`);
-  console.log(`   Bill Scanner: Tesseract.js OCR (local, free)`);
-  console.log(`   Email: ${process.env.SMTP_USER ? "✅ Configured" : "⚠️  STUB (add SMTP_USER/SMTP_PASS to .env)"}`);
-  console.log(`   WhatsApp: ${process.env.TWILIO_SID ? "✅ Configured" : "⚠️  STUB (add TWILIO_SID/TWILIO_TOKEN to .env)"}\n`);
+  console.log(`\nÃ¢Å“â€¦ Kirana POS Backend v3 Ã¢â€ â€™ http://localhost:${PORT}`);
+  console.log(`   DB  : ${process.env.DB_NAME || "kirana_pos"} @ ${process.env.DB_HOST || "localhost"}`);
+  console.log(`   AI  : Ã°Å¸Â¤â€“ Gemini Vision API (gemini-1.5-flash)`);
+  console.log(`   Key : ${process.env.GEMINI_API_KEY ? "Ã¢Å“â€¦ Configured" : "Ã¢ÂÅ’ MISSING Ã¢â‚¬â€ add GEMINI_API_KEY to .env"}`);
+  console.log(`   Mail: ${process.env.SMTP_USER ? "Ã¢Å“â€¦ Configured" : "Ã¢Å¡Â Ã¯Â¸Â  STUB"}\n`);
 });

@@ -175,6 +175,42 @@ CREATE TABLE IF NOT EXISTS bill_scans (
   scanned_at      TIMESTAMP     DEFAULT CURRENT_TIMESTAMP
 );
 
+-- ----------------------------------------
+-- SUPPLIERS  (AI Bill Engine)
+-- ----------------------------------------
+CREATE TABLE IF NOT EXISTS suppliers (
+  id            VARCHAR(64)   PRIMARY KEY,
+  shop_id       INT           NOT NULL,
+  name          VARCHAR(120)  NOT NULL,
+  business_name VARCHAR(180),
+  mobile        VARCHAR(15),
+  gst_number    VARCHAR(20),
+  address       TEXT,
+  created_at    TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_sup_shop (shop_id),
+  INDEX idx_sup_name (name)
+);
+
+-- ----------------------------------------
+-- BILL RECORDS  (AI Bill Engine)
+-- ----------------------------------------
+CREATE TABLE IF NOT EXISTS bill_records (
+  id             VARCHAR(64)   PRIMARY KEY,
+  shop_id        INT           NOT NULL,
+  supplier_id    VARCHAR(64),
+  bill_number    VARCHAR(60),
+  bill_date      VARCHAR(20),
+  total_amount   DECIMAL(12,2) DEFAULT 0,
+  tax_amount     DECIMAL(12,2) DEFAULT 0,
+  payment_method VARCHAR(20),
+  items_json     JSON,
+  scan_id        VARCHAR(64),
+  created_at     TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_br_shop     (shop_id),
+  INDEX idx_br_supplier (supplier_id),
+  INDEX idx_br_date     (bill_date)
+);
+
 -- Cleanup
 DROP PROCEDURE IF EXISTS kp_add_col;
 
