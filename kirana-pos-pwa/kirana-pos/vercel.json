@@ -1,0 +1,8 @@
+{
+    "rewrites": [
+        {
+            "source": "/api/:path*",
+            "destination": "https://kirana-pos-backend.onrender.com/api/:path*"
+        }
+    ]
+}
