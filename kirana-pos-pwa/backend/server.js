@@ -1,4 +1,4 @@
-﻿require("dotenv").config();
+require("dotenv").config();
 
 const express  = require("express");
 const cors     = require("cors");
@@ -141,7 +141,17 @@ async function sendWhatsAppNotification(message) {
 /* ===============================
    HEALTH CHECK
 =============================== */
-app.get("/", (req, res) => res.send("Kirana POS Backend v2 Running"));
+app.get("/", (req, res) => {
+  if (process.env.NODE_ENV === "production") {
+    return res.sendFile(path.join(__dirname, "..", "kirana-pos", "dist", "index.html"));
+  }
+  res.send("Kirana POS Backend v2 Running");
+});
+
+// Serve static files from the frontend dist folder in production
+if (process.env.NODE_ENV === "production") {
+  app.use(express.static(path.join(__dirname, "..", "kirana-pos", "dist")));
+}
 
 app.get("/api/ping", (req, res) => {
   db.query("SELECT 1", (err) => {

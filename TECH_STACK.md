@@ -84,7 +84,34 @@ A custom-built extraction engine designed for Indian bill formats.
 
 ---
 
-## 🛠️ Developer Ecosystem
-- **Local Dev**: `npm run dev` (Vite) + `nodemon` (Express).
-- **Environment**: Managed via `.env` files for secrets (DB, JWT, Gemini Keys).
-- **OCR Engine**: Requires `eng.traineddata` locally for Tesseract optimization.
+## 🚀 Deployment
+ 
+ ### Prerequisites
+ - **Node.js** (v18+)
+ - **MySQL** (Local or Cloud)
+ - **PM2** (Process Manager)
+ 
+ ### 1. Frontend Build
+ ```bash
+ cd kirana-pos
+ npm install
+ npm run build
+ ```
+ This generates the `dist` folder which is served by the backend.
+ 
+ ### 2. Backend Configuration
+ - Copy `.env.example` to `.env`.
+ - Update `DB_HOST`, `DB_USER`, `DB_PASS`, and `DB_NAME`.
+ - Add your `GEMINI_API_KEY`.
+ 
+ ### 3. Start Production Server
+ ```bash
+ cd backend
+ npm install
+ npm install -g pm2
+ pm2 start ecosystem.config.js --env production
+ ```
+ 
+ ### 4. Database Setup
+ - Import `schema.sql` into your MySQL database.
+ - Run any pending migrations from `migrate.sql` or `migrate_gemini.sql`.
