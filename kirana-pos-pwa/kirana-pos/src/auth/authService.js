@@ -11,7 +11,7 @@ import {
 import { ROLES } from "./roles";
 import { logAudit } from "../services/auditLog";
 
-const API_BASE = "http://localhost:5000";
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 // Simple hashing for local auth
 async function hashPassword(password) {
