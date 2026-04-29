@@ -54,7 +54,8 @@ async function tryBackendLogin(username, password) {
       });
 
       if (!regRes.ok && regRes.status !== 409) {
-        console.warn("[Auth] Backend registration failed:", regRes.status);
+        const errText = await regRes.text().catch(() => "No text");
+        console.warn("[Auth] Backend registration failed:", regRes.status, errText);
         return;
       }
 
@@ -144,7 +145,11 @@ async function tryBackendRegisterAndLogin({ name, username, password, phone, ema
       signal: AbortSignal.timeout(5000)
     });
 
-    if (!regRes.ok && regRes.status !== 409) return;
+    if (!regRes.ok && regRes.status !== 409) {
+      const errText = await regRes.text().catch(() => "No text");
+      console.warn("[Auth] Backend registration failed:", regRes.status, errText);
+      return;
+    }
 
     const loginRes = await fetch(`${API_BASE}/api/login`, {
       method: "POST",
