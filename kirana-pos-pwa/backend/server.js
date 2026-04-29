@@ -57,7 +57,7 @@ app.use(cors({
   credentials: true
 }));
 
-app.options("*", cors());
+app.options(/.*/, cors());
 
 const uploadsDir = path.join(__dirname, "uploads");
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir);
@@ -807,7 +807,7 @@ if (fs.existsSync(distPath)) {
   console.log(`[INFO] Serving frontend from ${distPath}`);
 
   // Catch-all for SPA routing
-  app.get("/{*any}", (req, res, next) => {
+  app.get("*", (req, res, next) => {
     if (req.path.startsWith("/api")) return next();
     res.sendFile(path.join(distPath, "index.html"));
   });
