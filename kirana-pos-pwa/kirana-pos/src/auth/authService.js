@@ -184,7 +184,33 @@ export async function login(username, password) {
   const user = await getUserByUsername(username);
 
   if (!user) {
-    throw new Error("User not found");
+    if (navigator.onLine && API_BASE) {
+      try {
+        const res = await fetch(`${API_BASE}/api/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ownerphone: username, password })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          await createOwnerAccount({
+            name: data.shop.owner_name || username,
+            username: data.shop.owner_phone || username,
+            password: password,
+            phone: data.shop.owner_phone || username,
+            email: data.shop.owner_email || "",
+            shopName: data.shop.shop_name || "My Shop"
+          });
+          user = await getUserByUsername(username);
+        }
+      } catch (e) {
+        console.warn("Cloud fallback login failed", e);
+      }
+    }
+  }
+
+  if (!user) {
+    throw new Error("User not found locally or in cloud.");
   }
 
   const hashed = await hashPassword(password);
