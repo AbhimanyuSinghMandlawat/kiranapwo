@@ -10,10 +10,7 @@ import {
 
 import { ROLES } from "./roles";
 import { logAudit } from "../services/auditLog";
-
-// In production (Vercel) the /api/* calls are proxied by vercel.json → Render.
-// In local dev vite.config.js proxies /api/* → localhost:5000.
-// Using a relative base means ZERO hardcoded URLs — works everywhere.
+import { API_BASE } from "../config";
 
 
 // Simple hashing for local auth

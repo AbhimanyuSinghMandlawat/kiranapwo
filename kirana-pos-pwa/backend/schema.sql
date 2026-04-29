@@ -1,13 +1,6 @@
 -- =============================================
--- Kirana POS  –  MySQL Schema  (v2)
--- Run once:  mysql -u root -p < schema.sql
+-- Kirana POS  –  MySQL Schema  (v3)
 -- =============================================
-
-CREATE DATABASE IF NOT EXISTS kirana_pos
-  CHARACTER SET utf8mb4
-  COLLATE utf8mb4_unicode_ci;
-
-USE kirana_pos;
 
 -- ----------------------------------------
 -- SHOPS  (one per kirana store)
@@ -170,12 +163,42 @@ CREATE TABLE IF NOT EXISTS bill_scans (
   INDEX idx_scan_shop (shop_id)
 );
 
-SHOW TABLES;
-USE kirana_pos;
-SELECT * FROM stocks;
-SELECT * FROM shops;
-SELECT * FROM sales;
-SELECT * FROM customers;
-SELECT * FROM coupons;
-SELECT * FROM audit_logs;
+-- ----------------------------------------
+-- SUPPLIERS
+-- ----------------------------------------
+CREATE TABLE IF NOT EXISTS suppliers (
+  id           VARCHAR(64)  PRIMARY KEY,
+  shop_id      INT          NOT NULL,
+  name         VARCHAR(120) NOT NULL,
+  business_name VARCHAR(180),
+  mobile       VARCHAR(15),
+  gst_number   VARCHAR(20),
+  address      TEXT,
+  created_at   TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+  updated_at   TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX idx_sup_shop   (shop_id),
+  INDEX idx_sup_name   (name),
+  INDEX idx_sup_mobile (mobile),
+  INDEX idx_sup_gst    (gst_number)
+);
+
+-- ----------------------------------------
+-- BILL RECORDS
+-- ----------------------------------------
+CREATE TABLE IF NOT EXISTS bill_records (
+  id             VARCHAR(64)   PRIMARY KEY,
+  shop_id        INT           NOT NULL,
+  supplier_id    VARCHAR(64),
+  bill_number    VARCHAR(60),
+  bill_date      VARCHAR(20),
+  total_amount   DECIMAL(12,2) DEFAULT 0,
+  tax_amount     DECIMAL(12,2) DEFAULT 0,
+  payment_method VARCHAR(30),
+  items_json     JSON,
+  scan_id        VARCHAR(64),
+  created_at     TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
+  INDEX idx_br_shop     (shop_id),
+  INDEX idx_br_supplier (supplier_id),
+  INDEX idx_br_date     (bill_date)
+);
 

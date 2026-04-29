@@ -4,7 +4,7 @@ import { getSyncStats } from "../services/syncService";
 import { t } from "../i18n/i18n";
 import QRCode from "qrcode";
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+import { API_BASE } from "../config";
 
 export async function renderShopSettings(container) {
   const mc = document.querySelector(".main-content") || container;
