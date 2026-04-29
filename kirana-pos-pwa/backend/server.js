@@ -85,6 +85,7 @@ app.use("/api/bill-records", require("./routes/billRecords"));
 const distPath = path.join(__dirname, "../kirana-pos/dist");
 if (fs.existsSync(distPath)) {
   app.use(express.static(distPath));
+  app.use((req, res, next) => {
     if (req.path.startsWith("/api")) return next();
     res.sendFile(path.join(distPath, "index.html"));
   });
