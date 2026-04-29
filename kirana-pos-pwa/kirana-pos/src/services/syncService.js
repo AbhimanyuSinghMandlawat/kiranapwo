@@ -16,22 +16,22 @@ export async function queueSync(type, payload) {
   const db = await openDB();
 
   return new Promise(resolve => {
-    const tx    = db.transaction("sync_queue", "readwrite");
+    const tx = db.transaction("sync_queue", "readwrite");
     const store = tx.objectStore("sync_queue");
 
     store.add({
-      id:         crypto.randomUUID(),
+      id: crypto.randomUUID(),
       type,
       payload,
-      synced:     false,
-      failed:     false,
+      synced: false,
+      failed: false,
       retryCount: 0,          // ✅ FIX: track retry attempts
-      lastError:  null,
-      createdAt:  Date.now()
+      lastError: null,
+      createdAt: Date.now()
     });
 
     tx.oncomplete = resolve;
-    tx.onerror    = () => resolve(); // Don't crash if queue writing fails
+    tx.onerror = () => resolve(); // Don't crash if queue writing fails
   });
 }
 
@@ -75,9 +75,9 @@ export async function syncPending() {
   const db = await openDB();
 
   const items = await new Promise(resolve => {
-    const tx    = db.transaction("sync_queue", "readonly");
+    const tx = db.transaction("sync_queue", "readonly");
     const store = tx.objectStore("sync_queue");
-    const req   = store.getAll();
+    const req = store.getAll();
     req.onsuccess = () => resolve(req.result || []);
   });
 
@@ -105,10 +105,10 @@ export async function syncPending() {
 
       // Mark as synced in a fresh transaction
       await new Promise(resolve => {
-        const tx    = db.transaction("sync_queue", "readwrite");
+        const tx = db.transaction("sync_queue", "readwrite");
         const store = tx.objectStore("sync_queue");
-        item.synced    = true;
-        item.syncedAt  = Date.now();
+        item.synced = true;
+        item.syncedAt = Date.now();
         store.put(item);
         tx.oncomplete = resolve;
       });
@@ -117,7 +117,7 @@ export async function syncPending() {
 
     } catch (err) {
       const retryCount = (item.retryCount || 0) + 1;
-      const abandoned  = retryCount >= MAX_RETRIES;
+      const abandoned = retryCount >= MAX_RETRIES;
 
       console.warn(
         `[sync] ❌ Failed ${item.type} (${item.id}) [attempt ${retryCount}/${MAX_RETRIES}]: ${err.message}`
@@ -128,11 +128,11 @@ export async function syncPending() {
 
       // ✅ FIX: track retryCount, mark abandoned after MAX_RETRIES
       await new Promise(resolve => {
-        const tx    = db.transaction("sync_queue", "readwrite");
+        const tx = db.transaction("sync_queue", "readwrite");
         const store = tx.objectStore("sync_queue");
         item.retryCount = retryCount;
-        item.failed     = abandoned;   // only permanently failed when capped
-        item.lastError  = err.message;
+        item.failed = abandoned;   // only permanently failed when capped
+        item.lastError = err.message;
         store.put(item);
         tx.oncomplete = resolve;
       });
@@ -150,9 +150,9 @@ export async function retrySyncFailed() {
   const db = await openDB();
 
   await new Promise(resolve => {
-    const tx    = db.transaction("sync_queue", "readwrite");
+    const tx = db.transaction("sync_queue", "readwrite");
     const store = tx.objectStore("sync_queue");
-    const req   = store.getAll();
+    const req = store.getAll();
 
     req.onsuccess = () => {
       // ✅ FIX: only reset items that haven't hit the cap
@@ -200,11 +200,11 @@ export function initSyncListener() {
 ------------------------------------------------------- */
 async function sendToServer(item, token) {
   const endpointMap = {
-    sale:          "/api/sales",
-    customer:      "/api/customers",
-    stock:         "/api/stocks",
-    coupon:        "/api/coupons",
-    audit_log:     "/api/audit-logs",
+    sale: "/api/sales",
+    customer: "/api/customers",
+    stock: "/api/stocks",
+    coupon: "/api/coupons",
+    audit_log: "/api/audit-logs",
     daily_summary: "/api/daily-summary"
   };
 
@@ -215,9 +215,9 @@ async function sendToServer(item, token) {
   }
 
   const res = await fetch(API_BASE + endpoint, {
-    method:  "POST",
+    method: "POST",
     headers: {
-      "Content-Type":  "application/json",
+      "Content-Type": "application/json",
       "Authorization": `Bearer ${token}`
     },
     body: JSON.stringify(item.payload)
@@ -234,18 +234,18 @@ async function sendToServer(item, token) {
 ------------------------------------------------------- */
 export async function getSyncStats() {
   try {
-    const db    = await openDB();
+    const db = await openDB();
     const items = await new Promise(resolve => {
-      const tx  = db.transaction("sync_queue", "readonly");
+      const tx = db.transaction("sync_queue", "readonly");
       const req = tx.objectStore("sync_queue").getAll();
       req.onsuccess = () => resolve(req.result || []);
     });
 
     return {
-      total:     items.length,
-      synced:    items.filter(i => i.synced).length,
-      pending:   items.filter(i => !i.synced && !i.failed && (i.retryCount || 0) < MAX_RETRIES).length,
-      failed:    items.filter(i => i.failed || (i.retryCount || 0) >= MAX_RETRIES).length,
+      total: items.length,
+      synced: items.filter(i => i.synced).length,
+      pending: items.filter(i => !i.synced && !i.failed && (i.retryCount || 0) < MAX_RETRIES).length,
+      failed: items.filter(i => i.failed || (i.retryCount || 0) >= MAX_RETRIES).length,
       abandoned: items.filter(i => !i.synced && (i.retryCount || 0) >= MAX_RETRIES).length,
     };
   } catch {

@@ -1,3 +1,4 @@
+// src/auth/authService.js
 import {
   saveUser,
   getUserByUsername,
@@ -11,13 +12,9 @@ import {
 import { ROLES } from "./roles";
 import { logAudit } from "../services/auditLog";
 
-// In production (Vercel) the /api/* calls are proxied by vercel.json → Render.
-// In local dev vite.config.js proxies /api/* → localhost:5000.
-// Using a relative base means ZERO hardcoded URLs — works everywhere.
-const rawApiUrl = import.meta.env.VITE_API_URL || "https://kiranapwoo-backend.onrender.com";
-const API_BASE = rawApiUrl.endsWith("/") ? rawApiUrl.slice(0, -1) : rawApiUrl;
+// ✅ FIXED: Declare API_BASE here, strip trailing slash
+const API_BASE = (import.meta.env.VITE_API_URL || "https://kiranapwoo-backend.onrender.com").replace(/\/$/, "");
 
-// Simple hashing for local auth
 async function hashPassword(password) {
   const msgBuffer = new TextEncoder().encode(password);
   const hashBuffer = await crypto.subtle.digest("SHA-256", msgBuffer);
@@ -26,11 +23,6 @@ async function hashPassword(password) {
     .join("");
 }
 
-/* -------------------------------------------------------
-   Try to obtain a backend JWT and store it in settings.
-   Works for BOTH new and old accounts.
-   Fails silently if backend is offline.
-------------------------------------------------------- */
 async function tryBackendLogin(username, password) {
   try {
     if (!navigator.onLine || !API_BASE) return;
@@ -80,7 +72,6 @@ async function tryBackendLogin(username, password) {
 
     if (data.token) {
       const shopId = data.shop?.id || null;
-      // Namespace IndexedDB per shop so accounts never share data
       if (shopId) {
         localStorage.setItem("kirana_db_name", `kirana_pos_${shopId}`);
       }
@@ -97,14 +88,7 @@ async function tryBackendLogin(username, password) {
   }
 }
 
-export async function createOwnerAccount({
-  name,
-  username,
-  password,
-  phone,
-  email,
-  shopName
-}) {
+export async function createOwnerAccount({ name, username, password, phone, email, shopName }) {
   const existing = await getUserByUsername(username);
 
   if (existing) {
@@ -138,28 +122,10 @@ export async function createOwnerAccount({
     ownerEmail: email || null
   });
 
-  await tryBackendRegisterAndLogin({
-    name,
-    username,
-    password,
-    phone,
-    email,
-    shopName
-  });
+  await tryBackendRegisterAndLogin({ name, username, password, phone, email, shopName });
 }
 
-/* -------------------------------------------------------
-   Register shop on backend (once) and store JWT token.
-   Called during createOwnerAccount - fails silently if offline.
-------------------------------------------------------- */
-async function tryBackendRegisterAndLogin({
-  name,
-  username,
-  password,
-  phone,
-  email,
-  shopName
-}) {
+async function tryBackendRegisterAndLogin({ name, username, password, phone, email, shopName }) {
   try {
     if (!navigator.onLine || !API_BASE) return;
 
@@ -193,7 +159,6 @@ async function tryBackendRegisterAndLogin({
 
     if (data.token) {
       const shopId = data.shop?.id || null;
-      // Namespace IndexedDB per shop so accounts never share data
       if (shopId) {
         localStorage.setItem("kirana_db_name", `kirana_pos_${shopId}`);
       }
@@ -246,7 +211,6 @@ export async function login(username, password) {
 }
 
 export async function logout() {
-  // Clear backend token from settings so the next account gets a fresh token
   try {
     const current = await getShopSettings();
     if (current) {
@@ -260,7 +224,6 @@ export async function logout() {
   } catch (e) {
     console.warn("[Auth] Could not clear backend token on logout:", e.message);
   }
-  // Remove the shop-scoped DB key so the next login opens a fresh DB namespace
   localStorage.removeItem("kirana_db_name");
   await clearSession();
   sessionStorage.removeItem("customer_session");
