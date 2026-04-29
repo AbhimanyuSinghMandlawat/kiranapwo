@@ -1,8 +1,17 @@
 import { logStaffAction } from "./staffHistory";
 import { getCurrentUser } from "../auth/authService";
 import { queueSync } from "./syncService";
-const DB_NAME = "kirana_pos_db";
 const DB_VERSION = 55;    // v55: added suppliers + bill_records CRUD exports
+
+// ── Multi-tenant isolation ──────────────────────────────────────────────────
+// Each shop account gets its own IndexedDB database named "kirana_pos_<shopId>".
+// The active DB name is set in localStorage when a backend token is received
+// (authService.js / ShopSettings.js) and cleared on logout.
+// Falls back to "kirana_pos_db" when not connected to a backend (offline-first mode).
+function getActiveDbName() {
+  return localStorage.getItem("kirana_db_name") || "kirana_pos_db";
+}
+
 
 const SALES_STORE = "sales";
 const STOCK_STORE = "stocks";
@@ -17,6 +26,7 @@ const STAFF_HISTORY_STORE = "staff_history";
 
 
 export function openDB() {
+  const DB_NAME = getActiveDbName();
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION);
 

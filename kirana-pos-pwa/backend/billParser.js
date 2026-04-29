@@ -8,7 +8,11 @@ const Tesseract = require("tesseract.js");
 
 // ─── OCR: get words with bounding boxes (more accurate than raw text) ─────────
 async function ocrWithPositions(filePath) {
-  const worker = await Tesseract.createWorker("eng", 1, { logger: () => {} });
+  const path = require("path");
+  const worker = await Tesseract.createWorker("eng", 1, {
+    cachePath: path.join(__dirname),
+    logger: () => {}
+  });
 
   await worker.setParameters({
     tessedit_pageseg_mode: "1",          // Auto PSM — best for mixed layouts

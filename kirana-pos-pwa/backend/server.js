@@ -1,59 +1,78 @@
-﻿require("dotenv").config();
+const dotenv = require("dotenv");
+const envPath = __dirname + "/.env";
+const result = dotenv.config({ path: envPath, debug: true });
 
-const express  = require("express");
-const cors     = require("cors");
-const mysql    = require("mysql2");
-const jwt      = require("jsonwebtoken");
-const bcrypt   = require("bcryptjs");
-const multer   = require("multer");
-const path     = require("path");
-const fs       = require("fs");
+console.log("envPath:", envPath);
+console.log("dotenv error:", result.error || null);
+console.log("dotenv parsed:", result.parsed || null);
+console.log("JWTSECRET:", process.env.JWTSECRET || null);
+
+const express = require("express");
+const cors = require("cors");
+const mysql = require("mysql2");
+const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
+const multer = require("multer");
+const path = require("path");
+const fs = require("fs");
 const nodemailer = require("nodemailer");
-const { GoogleGenerativeAI } = require("@google/generative-ai");
-
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+const crypto = require("crypto");
+const { parseBill } = require("./billParser");
 
 const app = express();
 
+if (!process.env.JWTSECRET) throw new Error("JWTSECRET is required");
+if (!process.env.DBHOST) throw new Error("DBHOST is required");
+if (!process.env.DBUSER) throw new Error("DBUSER is required");
+if (!process.env.DBNAME) throw new Error("DBNAME is required");
+
+const JWTSECRET = process.env.JWTSECRET;
+const PORT = process.env.PORT || 5000;
+
+const allowedOrigins = (process.env.CORS_ORIGIN || "")
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
+
+const fallbackOrigins = [
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "http://localhost:5175",
+  "http://localhost:5176",
+  "http://localhost:4173",
+  "http://localhost:5000",
+  "https://kiranapwo.vercel.app"
+];
+
+const corsOrigins = allowedOrigins.length ? allowedOrigins : fallbackOrigins;
+
 app.use(cors({
-  origin: [
-    "http://localhost:5173",
-    "http://localhost:5174",
-    "http://localhost:5175",
-    "http://localhost:5176",
-    "http://localhost:4173",
-    "http://localhost:5000"
-  ],
-  methods: ["GET", "POST", "PUT", "DELETE"],
+  origin(origin, callback) {
+    if (!origin) return callback(null, true);
+    if (corsOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error(`CORS blocked for origin: ${origin}`));
+  },
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true
 }));
-app.use(express.json({ limit: "50mb" }));
 
-const JWT_SECRET = process.env.JWT_SECRET || "kirana_super_secret_change_me";
-const PORT       = process.env.PORT || 5000;
+app.options(/.*/, cors());
 
-/* ===============================
-   MULTER Ã¢â‚¬â€œ file uploads (bill scanner)
-=============================== */
-const upload = multer({
-  dest: path.join(__dirname, "uploads"),
-  limits: { fileSize: 10 * 1024 * 1024 } // 10 MB max
-});
+const uploadsDir = path.join(__dirname, "uploads");
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir);
 
-if (!fs.existsSync(path.join(__dirname, "uploads"))) {
-  fs.mkdirSync(path.join(__dirname, "uploads"));
-}
+const upload = multer({ dest: uploadsDir, limits: { fileSize: 10 * 1024 * 1024 } });
 
-/* ===============================
-   MYSQL CONNECTION POOL
-=============================== */
 const db = mysql.createPool({
-  host:            process.env.DB_HOST || "localhost",
-  user:            process.env.DB_USER || "root",
-  password:        process.env.DB_PASS || "",
-  database:        process.env.DB_NAME || "kirana_pos",
+  host: process.env.DBHOST,
+  user: process.env.DBUSER,
+  password: process.env.DBPASS || "",
+  database: process.env.DBNAME,
+  port: parseInt(process.env.DBPORT || "3306", 10),
   connectionLimit: 10,
-  waitForConnections: true
+  waitForConnections: true,
+  multipleStatements: true
 });
 
 function query(sql, params = []) {
@@ -65,46 +84,82 @@ function query(sql, params = []) {
   });
 }
 
-/* ===============================
-   AUTH MIDDLEWARE
-=============================== */
+async function ensureExtraTables() {
+  await query(`
+    CREATE TABLE IF NOT EXISTS shops (
+      id            INT           AUTO_INCREMENT PRIMARY KEY,
+      shop_name     VARCHAR(150)  NOT NULL,
+      owner_name    VARCHAR(120)  NOT NULL,
+      owner_phone   VARCHAR(20)   NOT NULL UNIQUE,
+      owner_email   VARCHAR(120),
+      owner_mobile  VARCHAR(20),
+      password_hash VARCHAR(255)  NOT NULL,
+      created_at    TIMESTAMP     DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS suppliers (
+      id           VARCHAR(64)  PRIMARY KEY,
+      shop_id      INT          NOT NULL,
+      name         VARCHAR(120) NOT NULL,
+      business_name VARCHAR(180),
+      mobile       VARCHAR(15),
+      gst_number   VARCHAR(20),
+      address      TEXT,
+      created_at   TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
+      updated_at   TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      INDEX idx_sup_shop   (shop_id),
+      INDEX idx_sup_name   (name),
+      INDEX idx_sup_mobile (mobile),
+      INDEX idx_sup_gst    (gst_number)
+    );
+
+    CREATE TABLE IF NOT EXISTS bill_records (
+      id             VARCHAR(64)   PRIMARY KEY,
+      shop_id        INT           NOT NULL,
+      supplier_id    VARCHAR(64),
+      bill_number    VARCHAR(60),
+      bill_date      VARCHAR(20),
+      total_amount   DECIMAL(12,2) DEFAULT 0,
+      tax_amount     DECIMAL(12,2) DEFAULT 0,
+      payment_method VARCHAR(30),
+      items_json     JSON,
+      scan_id        VARCHAR(64),
+      created_at     TIMESTAMP     DEFAULT CURRENT_TIMESTAMP,
+      INDEX idx_br_shop     (shop_id),
+      INDEX idx_br_supplier (supplier_id),
+      INDEX idx_br_date     (bill_date)
+    );
+  `);
+}
+
 function auth(req, res, next) {
   const header = req.headers.authorization;
   if (!header) return res.status(401).json({ message: "No token" });
   const token = header.split(" ")[1];
-  jwt.verify(token, JWT_SECRET, (err, decoded) => {
+  jwt.verify(token, JWTSECRET, (err, decoded) => {
     if (err) return res.status(403).json({ message: "Invalid token" });
     req.shop = decoded;
     next();
   });
 }
 
-/* ===============================
-   EMAIL NOTIFICATION (STUB)
-   TODO: Fill in SMTP credentials in .env:
-     SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, NOTIFY_EMAIL
-=============================== */
 async function sendEmailNotification(subject, htmlBody) {
   try {
-    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-      console.log("[EMAIL STUB] Would send email:", subject);
-      console.log("[EMAIL STUB] Body preview:", htmlBody.substring(0, 200));
-      return { sent: false, reason: "No SMTP credentials configured" };
+    if (!process.env.SMTPUSER || !process.env.SMTPPASS) {
+      console.log("[EMAIL STUB] Would send:", subject);
+      return { sent: false, reason: "SMTP not configured" };
     }
     const transporter = nodemailer.createTransport({
-      host:   process.env.SMTP_HOST || "smtp.gmail.com",
-      port:   parseInt(process.env.SMTP_PORT) || 587,
+      host: process.env.SMTPHOST || "smtp.gmail.com",
+      port: parseInt(process.env.SMTPPORT || "587", 10),
       secure: false,
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS
-      }
+      auth: { user: process.env.SMTPUSER, pass: process.env.SMTPPASS }
     });
     await transporter.sendMail({
-      from:    `"Kirana POS" <${process.env.SMTP_USER}>`,
-      to:      process.env.NOTIFY_EMAIL || process.env.SMTP_USER,
+      from: `"Kirana POS" <${process.env.SMTPUSER}>`,
+      to: process.env.NOTIFYEMAIL || process.env.SMTPUSER,
       subject,
-      html:    htmlBody
+      html: htmlBody
     });
     return { sent: true };
   } catch (err) {
@@ -113,35 +168,20 @@ async function sendEmailNotification(subject, htmlBody) {
   }
 }
 
-/* ===============================
-   WHATSAPP NOTIFICATION (STUB)
-   TODO: Fill in Twilio credentials in .env:
-     TWILIO_SID, TWILIO_TOKEN, TWILIO_WHATSAPP_FROM, NOTIFY_WHATSAPP_TO
-=============================== */
 async function sendWhatsAppNotification(message) {
   try {
-    if (!process.env.TWILIO_SID || !process.env.TWILIO_TOKEN) {
-      console.log("[WHATSAPP STUB] Would send WhatsApp:", message.substring(0, 150));
-      return { sent: false, reason: "No Twilio credentials configured" };
+    if (!process.env.TWILIOSID || !process.env.TWILIOTOKEN) {
+      console.log("[WHATSAPP STUB] Would send:", message.slice(0, 120));
+      return { sent: false, reason: "Twilio not configured" };
     }
-    // TODO: Uncomment when credentials are available
-    // const client = require("twilio")(process.env.TWILIO_SID, process.env.TWILIO_TOKEN);
-    // await client.messages.create({
-    //   body: message,
-    //   from: `whatsapp:${process.env.TWILIO_WHATSAPP_FROM}`,
-    //   to:   `whatsapp:${process.env.NOTIFY_WHATSAPP_TO}`
-    // });
-    return { sent: false, reason: "Twilio integration pending Ã¢â‚¬â€œ add credentials to .env" };
+    return { sent: false, reason: "Twilio integration pending" };
   } catch (err) {
-    console.error("[WHATSAPP ERROR]", err.message);
     return { sent: false, reason: err.message };
   }
 }
 
-/* ===============================
-   HEALTH CHECK
-=============================== */
-app.get("/", (req, res) => res.send("Kirana POS Backend v2 Running"));
+// Health
+app.get("/", (req, res) => res.json({ status: "Kirana POS Backend v3", corsOrigins }));
 
 app.get("/api/ping", (req, res) => {
   db.query("SELECT 1", (err) => {
@@ -150,103 +190,115 @@ app.get("/api/ping", (req, res) => {
   });
 });
 
-/* ===============================
-   SECURITY: RATE LIMITING
-=============================== */
+// Rate limiter
 const rateLimitMap = new Map();
 function rateLimit(limit, windowMs) {
   return (req, res, next) => {
-    const ip = req.ip || req.connection.remoteAddress;
+    const ip = req.ip || "unknown";
     const now = Date.now();
     let entry = rateLimitMap.get(ip);
-    if (!entry || now > entry.resetTime) {
-      entry = { count: 0, resetTime: now + windowMs };
-    }
-    entry.count++;
+    if (!entry || now > entry.resetTime) entry = { count: 0, resetTime: now + windowMs };
+    entry.count += 1;
     rateLimitMap.set(ip, entry);
-    if (entry.count > limit) {
-      return res.status(429).json({ message: "Too many requests. Please try again later." });
-    }
+    if (entry.count > limit) return res.status(429).json({ message: "Too many requests." });
     next();
   };
 }
 
-const loginLimiter = rateLimit(10, 60 * 1000); // 10 attempts / min
-const scanLimiter  = rateLimit(5,  60 * 1000); // 5 scans / min
+const loginLimiter = rateLimit(10, 60 * 1000);
+const scanLimiter = rateLimit(5, 60 * 1000);
 
-/* ===============================
-   REGISTER SHOP
-=============================== */
+// ─── REGISTER ────────────────────────────────────────────────────────────────
 app.post("/api/register", async (req, res) => {
-  const { shop_name, owner_name, owner_phone, owner_email, owner_mobile, password } = req.body;
+  console.log("[DEBUG] Registration request:", req.body);
 
-  if (!shop_name || !owner_name || !owner_phone || !password)
-    return res.status(400).json({ message: "Missing required fields" });
+  // Handle both shopname (new) and shop_name (old/alternate)
+  const shopname = req.body.shopname || req.body.shop_name;
+  const ownername = req.body.ownername || req.body.owner_name;
+  const ownerphone = req.body.ownerphone || req.body.owner_phone;
+  const owneremail = req.body.owneremail || req.body.owner_email;
+  const ownermobile = req.body.ownermobile || req.body.owner_mobile;
+  const password = req.body.password;
+
+  if (!shopname || !ownername || !ownerphone || !password) {
+    const missing = [];
+    if (!shopname) missing.push("shopname");
+    if (!ownername) missing.push("ownername");
+    if (!ownerphone) missing.push("ownerphone");
+    if (!password) missing.push("password");
+
+    console.warn("[DEBUG] Registration failed - Missing fields:", missing);
+    return res.status(400).json({
+      message: "Missing required fields",
+      missing,
+      receivedKeys: Object.keys(req.body)
+    });
+  }
 
   try {
     const hash = await bcrypt.hash(password, 10);
     const result = await query(
-      `INSERT INTO shops
-         (shop_name, owner_name, owner_phone, owner_email, owner_mobile, password_hash)
+      `INSERT INTO shops (shop_name, owner_name, owner_phone, owner_email, owner_mobile, password_hash)
        VALUES (?,?,?,?,?,?)`,
-      [shop_name, owner_name, owner_phone, owner_email || null, owner_mobile || null, hash]
+      [shopname, ownername, ownerphone, owneremail || null, ownermobile || null, hash]
     );
-    res.json({ message: "Shop registered", shop_id: result.insertId });
+
+    res.json({ message: "Shop registered", shopid: result.insertId });
   } catch (err) {
-    if (err.code === "ER_DUP_ENTRY")
-      return res.status(409).json({ message: "Phone already registered" });
-    console.error(err);
-    res.status(500).json({ message: "Database error" });
+    console.error("[REGISTER ERROR]", err);
+    if (err.code === "ER_DUP_ENTRY") {
+      return res.status(409).json({ message: "Phone number already registered" });
+    }
+    res.status(500).json({ message: "Database error during registration", detail: err.message });
   }
 });
 
-// Alias: /api/auth/register Ã¢â€ â€™ same as /api/register
 app.post("/api/auth/register", (req, res, next) => {
   req.url = "/api/register";
   app.handle(req, res, next);
 });
 
-
-/* ===============================
-   LOGIN
-=============================== */
+// ─── LOGIN ────────────────────────────────────────────────────────────────────
 app.post("/api/login", loginLimiter, async (req, res) => {
-  const { owner_phone, password } = req.body;
+  const ownerphone = req.body.ownerphone || req.body.owner_phone;
+  const password = req.body.password;
+
+  if (!ownerphone || !password) {
+    return res.status(400).json({ message: "Phone and password are required" });
+  }
+
   try {
-    const rows = await query("SELECT * FROM shops WHERE owner_phone = ?", [owner_phone]);
-    if (rows.length === 0)
-      return res.status(400).json({ message: "Shop not found" });
+    const rows = await query("SELECT * FROM shops WHERE owner_phone = ?", [ownerphone]);
+    if (rows.length === 0) return res.status(400).json({ message: "Shop not found" });
 
-    const shop  = rows[0];
+    const shop = rows[0];
     const valid = await bcrypt.compare(password, shop.password_hash);
-    if (!valid)
-      return res.status(400).json({ message: "Invalid password" });
+    if (!valid) return res.status(400).json({ message: "Invalid password" });
 
-    const token = jwt.sign({ shop_id: shop.id }, JWT_SECRET, { expiresIn: "7d" });
+    const token = jwt.sign({ shopid: shop.id }, JWTSECRET, { expiresIn: "7d" });
     const { password_hash, ...safeShop } = shop;
     res.json({ token, shop: safeShop });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({ message: "Server error", detail: err.message });
   }
 });
 
-/* ===============================
-   SHOP PROFILE UPDATE (owner only)
-=============================== */
+// ─── SHOP PROFILE ─────────────────────────────────────────────────────────────
 app.put("/api/shop-profile", auth, async (req, res) => {
-  const shop_id = req.shop.shop_id;
-  const { owner_email, owner_mobile, shop_name } = req.body;
+  const shopid = req.shop.shopid;
+  const { owneremail, ownermobile, shopname } = req.body;
+
   try {
     await query(
       `UPDATE shops SET
-         owner_email  = COALESCE(?, owner_email),
-         owner_mobile = COALESCE(?, owner_mobile),
-         shop_name    = COALESCE(?, shop_name)
+        owner_email  = COALESCE(?, owner_email),
+        owner_mobile = COALESCE(?, owner_mobile),
+        shop_name    = COALESCE(?, shop_name)
        WHERE id = ?`,
-      [owner_email || null, owner_mobile || null, shop_name || null, shop_id]
+      [owneremail || null, ownermobile || null, shopname || null, shopid]
     );
-    const rows = await query("SELECT * FROM shops WHERE id = ?", [shop_id]);
+    const rows = await query("SELECT * FROM shops WHERE id = ?", [shopid]);
     const { password_hash, ...safeShop } = rows[0];
     res.json({ message: "Profile updated", shop: safeShop });
   } catch (err) {
@@ -255,12 +307,10 @@ app.put("/api/shop-profile", auth, async (req, res) => {
   }
 });
 
-/* ===============================
-   SALES  (upsert Ã¢â‚¬â€œ idempotent)
-=============================== */
+// ─── SALES ────────────────────────────────────────────────────────────────────
 app.post("/api/sales", auth, async (req, res) => {
-  const s       = req.body;
-  const shop_id = req.shop.shop_id;
+  const s = req.body;
+  const shopid = req.shop.shopid;
 
   if (!s.id || s.amount == null)
     return res.status(400).json({ message: "Missing sale id or amount" });
@@ -268,29 +318,32 @@ app.post("/api/sales", auth, async (req, res) => {
   try {
     await query(
       `INSERT INTO sales
-         (id, shop_id, amount, payment_method, account_type, customer_name,
-          customer_phone, transaction_type, stock_effect, liability_effect,
-          reference_source, estimated_profit, sale_date, notes)
+       (id, shop_id, amount, payment_method, account_type, customer_name,
+        customer_phone, transaction_type, stock_effect, liability_effect,
+        reference_source, estimated_profit, sale_date, notes)
        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
        ON DUPLICATE KEY UPDATE
-         amount           = VALUES(amount),
-         payment_method   = VALUES(payment_method),
-         account_type     = VALUES(account_type),
-         customer_name    = VALUES(customer_name),
-         estimated_profit = VALUES(estimated_profit)`,
+        amount           = VALUES(amount),
+        payment_method   = VALUES(payment_method),
+        account_type     = VALUES(account_type),
+        customer_name    = VALUES(customer_name),
+        customer_phone   = VALUES(customer_phone),
+        transaction_type = VALUES(transaction_type),
+        stock_effect     = VALUES(stock_effect),
+        liability_effect = VALUES(liability_effect),
+        reference_source = VALUES(reference_source),
+        estimated_profit = VALUES(estimated_profit),
+        sale_date        = VALUES(sale_date),
+        notes            = VALUES(notes)`,
       [
-        s.id, shop_id, s.amount,
-        s.paymentMethod   || null,
-        s.accountType     || null,
-        s.customerName    || null,
-        s.customerPhone   || null,
-        s.transactionType || "sale",
-        s.stockEffect     || null,
-        s.liabilityEffect || null,
-        s.referenceSource || null,
+        s.id, shopid, s.amount,
+        s.paymentMethod || null, s.accountType || null,
+        s.customerName || null, s.customerPhone || null,
+        s.transactionType || "sale", s.stockEffect || null,
+        s.liabilityEffect || null, s.referenceSource || null,
         s.estimatedProfit || 0,
-        s.date            || new Date().toLocaleDateString(),
-        s.notes           || null
+        s.date || new Date().toLocaleDateString("en-IN"),
+        s.notes || null
       ]
     );
     res.json({ message: "Sale synced", id: s.id });
@@ -301,46 +354,40 @@ app.post("/api/sales", auth, async (req, res) => {
 });
 
 app.get("/api/sales", auth, async (req, res) => {
-  const shop_id = req.shop.shop_id;
+  const shopid = req.shop.shopid;
   try {
     const rows = await query(
-      "SELECT * FROM sales WHERE shop_id=? ORDER BY created_at DESC", [shop_id]
+      "SELECT * FROM sales WHERE shop_id = ? ORDER BY created_at DESC", [shopid]
     );
     res.json(rows);
   } catch (err) {
-    res.status(500).json({ message: "DB error" });
+    res.status(500).json({ message: "DB error", detail: err.message });
   }
 });
 
-/* ===============================
-   CUSTOMERS  (upsert)
-=============================== */
+// ─── CUSTOMERS ───────────────────────────────────────────────────────────────
 app.post("/api/customers", auth, async (req, res) => {
-  const c       = req.body;
-  const shop_id = req.shop.shop_id;
+  const c = req.body;
+  const shopid = req.shop.shopid;
 
   if (!c.id) return res.status(400).json({ message: "Missing customer id" });
 
   try {
     await query(
       `INSERT INTO customers
-         (id, shop_id, display_name, phone, lifetime_spend,
-          loyalty_level, visit_count, created_at)
+       (id, shop_id, display_name, phone, lifetime_spend, loyalty_level, visit_count, created_at)
        VALUES (?,?,?,?,?,?,?,?)
        ON DUPLICATE KEY UPDATE
-         display_name   = VALUES(display_name),
-         phone          = VALUES(phone),
-         lifetime_spend = VALUES(lifetime_spend),
-         loyalty_level  = VALUES(loyalty_level),
-         visit_count    = VALUES(visit_count)`,
+        display_name   = VALUES(display_name),
+        phone          = VALUES(phone),
+        lifetime_spend = VALUES(lifetime_spend),
+        loyalty_level  = VALUES(loyalty_level),
+        visit_count    = VALUES(visit_count)`,
       [
-        c.id, shop_id,
-        c.displayName   || null,
-        c.phone         || null,
-        c.lifetimeSpend || 0,
-        c.loyaltyLevel  || "bronze",
-        c.visitCount    || 0,
-        c.createdAt     ? new Date(c.createdAt) : new Date()
+        c.id, shopid, c.displayName || null, c.phone || null,
+        c.lifetimeSpend || 0, c.loyaltyLevel || "bronze",
+        c.visitCount || 0,
+        c.createdAt ? new Date(c.createdAt) : new Date()
       ]
     );
     res.json({ message: "Customer synced", id: c.id });
@@ -350,12 +397,23 @@ app.post("/api/customers", auth, async (req, res) => {
   }
 });
 
-/* ===============================
-   STOCKS  (upsert)
-=============================== */
+app.get("/api/customers", auth, async (req, res) => {
+  const shopid = req.shop.shopid;
+  try {
+    const rows = await query(
+      "SELECT * FROM customers WHERE shop_id = ? ORDER BY updated_at DESC, created_at DESC",
+      [shopid]
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ message: "DB error", detail: err.message });
+  }
+});
+
+// ─── STOCKS ───────────────────────────────────────────────────────────────────
 app.post("/api/stocks", auth, async (req, res) => {
-  const item    = req.body;
-  const shop_id = req.shop.shop_id;
+  const item = req.body;
+  const shopid = req.shop.shopid;
 
   if (!item.id || !item.name)
     return res.status(400).json({ message: "Missing stock id or name" });
@@ -363,23 +421,20 @@ app.post("/api/stocks", auth, async (req, res) => {
   try {
     await query(
       `INSERT INTO stocks
-         (id, shop_id, name, price, cost_price, quantity,
-          opening_quantity, is_opening, created_at)
+       (id, shop_id, name, price, cost_price, quantity, opening_quantity, is_opening, created_at)
        VALUES (?,?,?,?,?,?,?,?,?)
        ON DUPLICATE KEY UPDATE
-         name             = VALUES(name),
-         price            = VALUES(price),
-         cost_price       = VALUES(cost_price),
-         quantity         = VALUES(quantity)`,
+        name             = VALUES(name),
+        price            = VALUES(price),
+        cost_price       = VALUES(cost_price),
+        quantity         = VALUES(quantity),
+        opening_quantity = VALUES(opening_quantity),
+        is_opening       = VALUES(is_opening)`,
       [
-        item.id, shop_id,
-        item.name,
-        item.price           || 0,
-        item.costPrice       || 0,
-        item.quantity        || 0,
-        item.openingQuantity || 0,
-        item.isOpening       || false,
-        item.createdAt       ? new Date(item.createdAt) : new Date()
+        item.id, shopid, item.name, item.price || 0,
+        item.costPrice || 0, item.quantity || 0,
+        item.openingQuantity || 0, item.isOpening ? 1 : 0,
+        item.createdAt ? new Date(item.createdAt) : new Date()
       ]
     );
     res.json({ message: "Stock synced", id: item.id });
@@ -389,45 +444,56 @@ app.post("/api/stocks", auth, async (req, res) => {
   }
 });
 
-/* ===============================
-   COUPONS  (upsert)
-=============================== */
+app.get("/api/stocks", auth, async (req, res) => {
+  const shopid = req.shop.shopid;
+  try {
+    const rows = await query(
+      "SELECT * FROM stocks WHERE shop_id = ? ORDER BY updated_at DESC, name ASC",
+      [shopid]
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ message: "DB error", detail: err.message });
+  }
+});
+
+// ─── COUPONS ──────────────────────────────────────────────────────────────────
 app.post("/api/coupons", auth, async (req, res) => {
-  const c       = req.body;
-  const shop_id = req.shop.shop_id;
+  const c = req.body;
+  const shopid = req.shop.shopid;
 
   if (!c.id) return res.status(400).json({ message: "Missing coupon id" });
 
-  // Cap discount: max 50% for percent-type, max Ã¢â€šÂ¹500 for flat-Ã¢â€šÂ¹ type
-  const rawValue  = parseFloat(c.value) || 0;
-  const safeValue = (c.type === "percent")
-    ? Math.min(rawValue, 50)   // max 50% off
-    : Math.min(rawValue, 500); // max Ã¢â€šÂ¹500 flat off
+  const rawValue = parseFloat(c.value) || 0;
+  const safeValue = c.type === "percent" ? Math.min(rawValue, 50) : Math.min(rawValue, 500);
 
   try {
     await query(
       `INSERT INTO coupons
-         (id, shop_id, customer_id, code, title, type, value,
-          min_purchase, loyalty_required, used, active, issued_at, expires_at, expiry_date)
+       (id, shop_id, customer_id, code, title, type, value, min_purchase,
+        loyalty_required, used, active, issued_at, expires_at, expiry_date)
        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
        ON DUPLICATE KEY UPDATE
-         used       = VALUES(used),
-         active     = VALUES(active),
-         expires_at = VALUES(expires_at)`,
+        customer_id      = VALUES(customer_id),
+        code             = VALUES(code),
+        title            = VALUES(title),
+        type             = VALUES(type),
+        value            = VALUES(value),
+        min_purchase     = VALUES(min_purchase),
+        loyalty_required = VALUES(loyalty_required),
+        used             = VALUES(used),
+        active           = VALUES(active),
+        issued_at        = VALUES(issued_at),
+        expires_at       = VALUES(expires_at),
+        expiry_date      = VALUES(expiry_date)`,
       [
-        c.id, shop_id,
-        c.customerId       || null,
-        c.code             || null,
-        c.title            || null,
-        c.type             || "discount",
-        safeValue,
-        c.minPurchase      || 0,
-        c.loyaltyRequired  || "bronze",
-        c.used             || false,
-        c.active !== false,
-        c.issuedAt         ? new Date(c.issuedAt)  : new Date(),
-        c.expiresAt        ? new Date(c.expiresAt) : null,
-        c.expiryDate       || null
+        c.id, shopid, c.customerId || null, c.code || null,
+        c.title || null, c.type || "discount", safeValue,
+        c.minPurchase || 0, c.loyaltyRequired || "bronze",
+        c.used ? 1 : 0, c.active !== false ? 1 : 0,
+        c.issuedAt ? new Date(c.issuedAt) : new Date(),
+        c.expiresAt ? new Date(c.expiresAt) : null,
+        c.expiryDate || null
       ]
     );
     res.json({ message: "Coupon synced", id: c.id });
@@ -437,12 +503,22 @@ app.post("/api/coupons", auth, async (req, res) => {
   }
 });
 
-/* ===============================
-   AUDIT LOGS  (upsert)
-=============================== */
+app.get("/api/coupons", auth, async (req, res) => {
+  const shopid = req.shop.shopid;
+  try {
+    const rows = await query(
+      "SELECT * FROM coupons WHERE shop_id = ? ORDER BY issued_at DESC", [shopid]
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ message: "DB error", detail: err.message });
+  }
+});
+
+// ─── AUDIT LOGS ───────────────────────────────────────────────────────────────
 app.post("/api/audit-logs", auth, async (req, res) => {
-  const log     = req.body;
-  const shop_id = req.shop.shop_id;
+  const log = req.body;
+  const shopid = req.shop.shopid;
 
   if (!log.id || !log.action)
     return res.status(400).json({ message: "Missing log id or action" });
@@ -450,21 +526,23 @@ app.post("/api/audit-logs", auth, async (req, res) => {
   try {
     await query(
       `INSERT INTO audit_logs
-         (id, shop_id, actor_id, actor_name, actor_role,
-          action, module, target_id, metadata, log_date, timestamp)
+       (id, shop_id, actor_id, actor_name, actor_role, action, module, target_id, metadata, log_date, timestamp)
        VALUES (?,?,?,?,?,?,?,?,?,?,?)
        ON DUPLICATE KEY UPDATE
-         metadata = VALUES(metadata)`,
+        actor_id   = VALUES(actor_id),
+        actor_name = VALUES(actor_name),
+        actor_role = VALUES(actor_role),
+        module     = VALUES(module),
+        target_id  = VALUES(target_id),
+        metadata   = VALUES(metadata),
+        log_date   = VALUES(log_date),
+        timestamp  = VALUES(timestamp)`,
       [
-        log.id, shop_id,
-        log.actorId   || null,
-        log.actorName || "System",
-        log.actorRole || "system",
-        log.action,
-        log.module    || null,
-        log.targetId  || null,
+        log.id, shopid, log.actorId || null,
+        log.actorName || "System", log.actorRole || "system",
+        log.action, log.module || null, log.targetId || null,
         JSON.stringify(log.metadata || {}),
-        log.date      || new Date().toLocaleDateString(),
+        log.date || new Date().toLocaleDateString("en-IN"),
         log.timestamp || Date.now()
       ]
     );
@@ -476,24 +554,22 @@ app.post("/api/audit-logs", auth, async (req, res) => {
 });
 
 app.get("/api/audit-logs", auth, async (req, res) => {
-  const shop_id = req.shop.shop_id;
+  const shopid = req.shop.shopid;
   try {
     const rows = await query(
-      "SELECT * FROM audit_logs WHERE shop_id=? ORDER BY timestamp DESC LIMIT 500",
-      [shop_id]
+      "SELECT * FROM audit_logs WHERE shop_id = ? ORDER BY timestamp DESC LIMIT 500",
+      [shopid]
     );
     res.json(rows);
   } catch (err) {
-    res.status(500).json({ message: "DB error" });
+    res.status(500).json({ message: "DB error", detail: err.message });
   }
 });
 
-/* ===============================
-   DAILY SUMMARY  (save + notify)
-=============================== */
+// ─── DAILY SUMMARY ────────────────────────────────────────────────────────────
 app.post("/api/daily-summary", auth, async (req, res) => {
-  const s       = req.body;
-  const shop_id = req.shop.shop_id;
+  const s = req.body;
+  const shopid = req.shop.shopid;
 
   if (!s.id || !s.summaryDate)
     return res.status(400).json({ message: "Missing summary id or date" });
@@ -501,60 +577,43 @@ app.post("/api/daily-summary", auth, async (req, res) => {
   try {
     await query(
       `INSERT INTO daily_summaries
-         (id, shop_id, summary_date, total_sales, total_profit, transactions,
-          credit_given, cash_total, upi_total, card_total, top_items, breakdown)
+       (id, shop_id, summary_date, total_sales, total_profit, transactions,
+        credit_given, cash_total, upi_total, card_total, top_items, breakdown)
        VALUES (?,?,?,?,?,?,?,?,?,?,?,?)
        ON DUPLICATE KEY UPDATE
-         total_sales   = VALUES(total_sales),
-         total_profit  = VALUES(total_profit),
-         transactions  = VALUES(transactions),
-         credit_given  = VALUES(credit_given),
-         cash_total    = VALUES(cash_total),
-         upi_total     = VALUES(upi_total),
-         card_total    = VALUES(card_total),
-         top_items     = VALUES(top_items),
-         breakdown     = VALUES(breakdown)`,
+        total_sales  = VALUES(total_sales),
+        total_profit = VALUES(total_profit),
+        transactions = VALUES(transactions),
+        credit_given = VALUES(credit_given),
+        cash_total   = VALUES(cash_total),
+        upi_total    = VALUES(upi_total),
+        card_total   = VALUES(card_total),
+        top_items    = VALUES(top_items),
+        breakdown    = VALUES(breakdown)`,
       [
-        s.id, shop_id, s.summaryDate,
-        s.totalSales   || 0,
-        s.profit       || 0,
-        s.transactions || 0,
-        s.creditGiven  || 0,
-        s.cashTotal    || 0,
-        s.upiTotal     || 0,
-        s.cardTotal    || 0,
-        JSON.stringify(s.topItems  || []),
+        s.id, shopid, s.summaryDate,
+        s.totalSales || 0, s.profit || 0, s.transactions || 0,
+        s.creditGiven || 0, s.cashTotal || 0, s.upiTotal || 0, s.cardTotal || 0,
+        JSON.stringify(s.topItems || []),
         JSON.stringify(s.breakdown || {})
       ]
     );
 
-    // Send notifications
-    const shopRows = await query("SELECT * FROM shops WHERE id = ?", [shop_id]);
-    const shop     = shopRows[0] || {};
+    const shopRows = await query("SELECT * FROM shops WHERE id = ?", [shopid]);
+    const shop = shopRows[0] || {};
 
-    const emailBody = buildSummaryEmailHTML(s, shop);
     const emailResult = await sendEmailNotification(
-      `Ã°Å¸â€œÅ  Daily Summary Ã¢â‚¬â€œ ${s.summaryDate} Ã¢â‚¬â€œ ${shop.shop_name || "Your Shop"}`,
-      emailBody
+      `Daily Summary - ${s.summaryDate} - ${shop.shop_name || "Your Shop"}`,
+      buildSummaryEmailHTML(s, shop)
     );
+    const waResult = await sendWhatsAppNotification(buildSummaryWhatsApp(s, shop));
 
-    const waMessage = buildSummaryWhatsApp(s, shop);
-    const waResult  = await sendWhatsAppNotification(waMessage);
+    if (emailResult.sent)
+      await query("UPDATE daily_summaries SET sent_email = 1 WHERE id = ?", [s.id]);
+    if (waResult.sent)
+      await query("UPDATE daily_summaries SET sent_whatsapp = 1 WHERE id = ?", [s.id]);
 
-    // Update sent flags if successful
-    if (emailResult.sent) {
-      await query("UPDATE daily_summaries SET sent_email=1 WHERE id=?", [s.id]);
-    }
-    if (waResult.sent) {
-      await query("UPDATE daily_summaries SET sent_whatsapp=1 WHERE id=?", [s.id]);
-    }
-
-    res.json({
-      message: "Daily summary saved",
-      id: s.id,
-      emailSent: emailResult.sent,
-      whatsappSent: waResult.sent
-    });
+    res.json({ message: "Daily summary saved", id: s.id, emailSent: emailResult.sent, whatsappSent: waResult.sent });
   } catch (err) {
     console.error("daily summary error:", err);
     res.status(500).json({ message: "DB error", detail: err.message });
@@ -562,142 +621,108 @@ app.post("/api/daily-summary", auth, async (req, res) => {
 });
 
 app.get("/api/daily-summary", auth, async (req, res) => {
-  const shop_id = req.shop.shop_id;
-  const date    = req.query.date || new Date().toLocaleDateString();
+  const shopid = req.shop.shopid;
+  const date = req.query.date || new Date().toLocaleDateString("en-IN");
   try {
     const rows = await query(
-      "SELECT * FROM daily_summaries WHERE shop_id=? AND summary_date=?",
-      [shop_id, date]
+      "SELECT * FROM daily_summaries WHERE shop_id = ? AND summary_date = ?",
+      [shopid, date]
     );
     res.json(rows[0] || null);
   } catch (err) {
-    res.status(500).json({ message: "DB error" });
+    res.status(500).json({ message: "DB error", detail: err.message });
   }
 });
 
 function buildSummaryEmailHTML(s, shop) {
   return `
     <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto;padding:20px;background:#f9f9f9;border-radius:10px">
-      <h2 style="color:#2e7d32">Ã°Å¸â€œÅ  Daily Business Summary</h2>
-      <h3>${shop.shop_name || "Your Kirana Shop"} Ã¢â‚¬â€ ${s.summaryDate}</h3>
+      <h2 style="color:#2e7d32">Daily Business Summary</h2>
+      <h3>${shop.shop_name || "Your Kirana Shop"} - ${s.summaryDate}</h3>
       <table style="width:100%;border-collapse:collapse">
-        <tr style="background:#e8f5e9"><td style="padding:8px"><strong>Total Sales</strong></td><td>Ã¢â€šÂ¹${(s.totalSales||0).toFixed(2)}</td></tr>
-        <tr><td style="padding:8px"><strong>Today's Profit</strong></td><td>Ã¢â€šÂ¹${(s.profit||0).toFixed(2)}</td></tr>
-        <tr style="background:#e8f5e9"><td style="padding:8px"><strong>Transactions</strong></td><td>${s.transactions||0}</td></tr>
-        <tr><td style="padding:8px"><strong>Credit Given</strong></td><td>Ã¢â€šÂ¹${(s.creditGiven||0).toFixed(2)}</td></tr>
-        <tr style="background:#e8f5e9"><td style="padding:8px"><strong>Cash Sales</strong></td><td>Ã¢â€šÂ¹${(s.cashTotal||0).toFixed(2)}</td></tr>
-        <tr><td style="padding:8px"><strong>UPI Sales</strong></td><td>Ã¢â€šÂ¹${(s.upiTotal||0).toFixed(2)}</td></tr>
-        <tr style="background:#e8f5e9"><td style="padding:8px"><strong>Card Sales</strong></td><td>Ã¢â€šÂ¹${(s.cardTotal||0).toFixed(2)}</td></tr>
+        <tr style="background:#e8f5e9"><td style="padding:8px"><strong>Total Sales</strong></td><td>Rs. ${(s.totalSales || 0).toFixed(2)}</td></tr>
+        <tr><td style="padding:8px"><strong>Today's Profit</strong></td><td>Rs. ${(s.profit || 0).toFixed(2)}</td></tr>
+        <tr style="background:#e8f5e9"><td style="padding:8px"><strong>Transactions</strong></td><td>${s.transactions || 0}</td></tr>
+        <tr><td style="padding:8px"><strong>Credit Given</strong></td><td>Rs. ${(s.creditGiven || 0).toFixed(2)}</td></tr>
+        <tr style="background:#e8f5e9"><td style="padding:8px"><strong>Cash Sales</strong></td><td>Rs. ${(s.cashTotal || 0).toFixed(2)}</td></tr>
+        <tr><td style="padding:8px"><strong>UPI Sales</strong></td><td>Rs. ${(s.upiTotal || 0).toFixed(2)}</td></tr>
+        <tr style="background:#e8f5e9"><td style="padding:8px"><strong>Card Sales</strong></td><td>Rs. ${(s.cardTotal || 0).toFixed(2)}</td></tr>
       </table>
-      ${(s.topItems||[]).length > 0 ? `
-        <h4>Ã°Å¸Ââ€  Top Selling Items</h4>
-        <ul>${(s.topItems||[]).map(i => `<li>${i.name} Ã¢â‚¬â€ ${i.qtySold} units sold</li>`).join("")}</ul>
-      ` : ""}
-      <p style="color:#888;font-size:12px;margin-top:20px">Sent automatically by Kirana POS at shop closing time.</p>
-    </div>
-  `;
+      <p style="color:#888;font-size:12px;margin-top:20px">Sent automatically by Kirana POS.</p>
+    </div>`;
 }
 
 function buildSummaryWhatsApp(s, shop) {
-  return `ðŸ“Š *Daily Summary* â€” ${s.summaryDate}
-ðŸª ${shop.shop_name || "Your Shop"}
-â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”
-ðŸ’° Total Sales: â‚¹${(s.totalSales||0).toFixed(2)}
-ðŸ“ˆ Profit: â‚¹${(s.profit||0).toFixed(2)}
-ðŸ›’ Transactions: ${s.transactions||0}
-ðŸ’³ Credit Given: â‚¹${(s.creditGiven||0).toFixed(2)}
-â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”
-Cash: â‚¹${(s.cashTotal||0).toFixed(2)} | UPI: â‚¹${(s.upiTotal||0).toFixed(2)} | Card: â‚¹${(s.cardTotal||0).toFixed(2)}
-Have a great evening! ðŸ™`;
+  return `Daily Summary - ${s.summaryDate}
+Shop: ${shop.shop_name || "Your Shop"}
+Total Sales: Rs. ${(s.totalSales || 0).toFixed(2)}
+Profit: Rs. ${(s.profit || 0).toFixed(2)}
+Transactions: ${s.transactions || 0}
+Cash: Rs. ${(s.cashTotal || 0).toFixed(2)} | UPI: Rs. ${(s.upiTotal || 0).toFixed(2)} | Card: Rs. ${(s.cardTotal || 0).toFixed(2)}`;
 }
 
-/* ===============================
-/* ===============================
-   AI BILL SCANNER — Tesseract OCR (100% free, no rate limits, no API)
-=============================== */
-const { parseBill } = require("./billParser");
-
-app.post("/api/scan-bill", auth, upload.single("bill"), async (req, res) => {
-  if (!req.file)
-    return res.status(400).json({ message: "No image uploaded" });
+// ─── BILL SCANNER ─────────────────────────────────────────────────────────────
+app.post("/api/scan-bill", auth, scanLimiter, upload.single("bill"), async (req, res) => {
+  if (!req.file) return res.status(400).json({ message: "No image uploaded" });
 
   const filePath = req.file.path;
-
   try {
-    console.log("[BILL SCAN] OCR processing:", req.file.originalname,
-      `(${(req.file.size / 1024).toFixed(0)} KB)`);
-
     const result = await parseBill(filePath);
 
     if (!result.readable || result.rawOcrLines < 3) {
-      fs.unlink(filePath, () => {});
-      return res.status(422).json({
-        message: "📷 Could not read text from image — please use a clearer, well-lit photo.",
-        errorCode: "IMAGE_UNREADABLE"
-      });
+      fs.unlink(filePath, () => { });
+      return res.status(422).json({ message: "Could not read text from image.", errorCode: "IMAGE_UNREADABLE" });
     }
 
-    if (result.inventory_items.length === 0 && result.confidence < 20) {
-      fs.unlink(filePath, () => {});
-      return res.status(422).json({
-        message: "📷 Could not extract bill data — please upload a clearer image.",
-        errorCode: "LOW_CONFIDENCE",
-        confidence: result.confidence,
-        imageQuality: result.imageQuality
-      });
+    if (result.inventoryitems.length === 0 && result.confidence < 20) {
+      fs.unlink(filePath, () => { });
+      return res.status(422).json({ message: "Could not extract bill data.", errorCode: "LOW_CONFIDENCE" });
     }
 
-    // Save to DB (non-blocking)
-    const scanId = require("crypto").randomUUID();
-    const shop_id = req.shop.shop_id;
+    const scanId = crypto.randomUUID();
     query(
       `INSERT INTO bill_scans
-         (id, shop_id, gst_number, bill_number, supplier_name, supplier_mobile, raw_text, items_json, confidence)
+       (id, shop_id, gst_number, bill_number, supplier_name, supplier_mobile, raw_text, items_json, confidence)
        VALUES (?,?,?,?,?,?,?,?,?)`,
       [
-        scanId, shop_id,
-        result.supplier.gst_number,
-        result.bill.bill_number,
-        result.supplier.name || result.supplier.business_name,
-        result.supplier.mobile,
+        scanId, req.shop.shopid,
+        result.supplier.gstnumber || null,
+        result.bill.billnumber || null,
+        result.supplier.name || null,
+        result.supplier.mobile || null,
         `OCR:${result.rawOcrLines} lines`,
-        JSON.stringify(result.inventory_items),
-        result.confidence
+        JSON.stringify(result.inventoryitems || []),
+        result.confidence || 0
       ]
-    ).catch(e => console.warn("[BILL SCAN] DB save (non-fatal):", e.message));
+    ).catch((e) => console.warn("[BILL SCAN] DB save non-fatal:", e.message));
 
-    fs.unlink(filePath, () => {});
-    console.log(`[BILL SCAN] Done — Items:${result.inventory_items.length} Confidence:${result.confidence}% OCR lines:${result.rawOcrLines}`);
-
+    fs.unlink(filePath, () => { });
     const { rawOcrLines, readable, ...clean } = result;
     res.json({ ...clean, scanId });
-
   } catch (err) {
-    fs.unlink(filePath, () => {});
-    console.error("[BILL SCAN ERROR]", err.message);
-    res.status(500).json({
-      message: `Scan failed: ${err.message}`,
-      errorCode: "SCAN_FAILED"
-    });
+    fs.unlink(filePath, () => { });
+    res.status(500).json({ message: `Scan failed: ${err.message}`, errorCode: "SCAN_FAILED" });
   }
 });
 
+// ─── SUPPLIERS ────────────────────────────────────────────────────────────────
 app.post("/api/suppliers", auth, async (req, res) => {
-  const s       = req.body;
-  const shop_id = req.shop.shop_id;
+  const s = req.body;
+  const shopid = req.shop.shopid;
   if (!s.name) return res.status(400).json({ message: "Supplier name required" });
 
   try {
-    const id = s.id || require("crypto").randomUUID();
+    const id = s.id || crypto.randomUUID();
     await query(
       `INSERT INTO suppliers (id, shop_id, name, business_name, mobile, gst_number, address)
        VALUES (?,?,?,?,?,?,?)
        ON DUPLICATE KEY UPDATE
-         name          = VALUES(name),
-         business_name = VALUES(business_name),
-         mobile        = VALUES(mobile),
-         gst_number    = VALUES(gst_number)`,
-      [id, shop_id, s.name, s.business_name || null, s.mobile || null, s.gst_number || null, s.address || null]
+        name          = VALUES(name),
+        business_name = VALUES(business_name),
+        mobile        = VALUES(mobile),
+        gst_number    = VALUES(gst_number),
+        address       = VALUES(address)`,
+      [id, shopid, s.name, s.businessname || null, s.mobile || null, s.gstnumber || null, s.address || null]
     );
     res.json({ message: "Supplier saved", id });
   } catch (err) {
@@ -707,52 +732,48 @@ app.post("/api/suppliers", auth, async (req, res) => {
 });
 
 app.get("/api/suppliers", auth, async (req, res) => {
-  const shop_id = req.shop.shop_id;
+  const shopid = req.shop.shopid;
   try {
-    const rows = await query("SELECT * FROM suppliers WHERE shop_id=? ORDER BY name ASC", [shop_id]);
+    const rows = await query("SELECT * FROM suppliers WHERE shop_id = ? ORDER BY name ASC", [shopid]);
     res.json(rows);
   } catch (err) {
-    res.status(500).json({ message: "DB error" });
+    res.status(500).json({ message: "DB error", detail: err.message });
   }
 });
 
 app.get("/api/suppliers/:id", auth, async (req, res) => {
-  const shop_id = req.shop.shop_id;
+  const shopid = req.shop.shopid;
   try {
-    const rows = await query("SELECT * FROM suppliers WHERE id=? AND shop_id=?", [req.params.id, shop_id]);
+    const rows = await query("SELECT * FROM suppliers WHERE id = ? AND shop_id = ?", [req.params.id, shopid]);
     rows.length ? res.json(rows[0]) : res.status(404).json({ message: "Not found" });
   } catch (err) {
-    res.status(500).json({ message: "DB error" });
+    res.status(500).json({ message: "DB error", detail: err.message });
   }
 });
 
-/* ===============================
-   BILL RECORDS  (upsert / list)
-=============================== */
+// ─── BILL RECORDS ─────────────────────────────────────────────────────────────
 app.post("/api/bill-records", auth, async (req, res) => {
-  const b       = req.body;
-  const shop_id = req.shop.shop_id;
-
+  const b = req.body;
+  const shopid = req.shop.shopid;
   try {
-    const id = b.id || require("crypto").randomUUID();
+    const id = b.id || crypto.randomUUID();
     await query(
       `INSERT INTO bill_records
-         (id, shop_id, supplier_id, bill_number, bill_date,
-          total_amount, tax_amount, payment_method, items_json, scan_id)
+       (id, shop_id, supplier_id, bill_number, bill_date, total_amount, tax_amount, payment_method, items_json, scan_id)
        VALUES (?,?,?,?,?,?,?,?,?,?)
        ON DUPLICATE KEY UPDATE
-         total_amount   = VALUES(total_amount),
-         items_json     = VALUES(items_json)`,
+        supplier_id    = VALUES(supplier_id),
+        bill_number    = VALUES(bill_number),
+        bill_date      = VALUES(bill_date),
+        total_amount   = VALUES(total_amount),
+        tax_amount     = VALUES(tax_amount),
+        payment_method = VALUES(payment_method),
+        items_json     = VALUES(items_json),
+        scan_id        = VALUES(scan_id)`,
       [
-        id, shop_id,
-        b.supplier_id    || null,
-        b.bill_number    || null,
-        b.bill_date      || null,
-        b.total_amount   || 0,
-        b.tax_amount     || 0,
-        b.payment_method || null,
-        JSON.stringify(b.items || []),
-        b.scan_id        || null
+        id, shopid, b.supplierid || null, b.billnumber || null,
+        b.billdate || null, b.totalamount || 0, b.taxamount || 0,
+        b.paymentmethod || null, JSON.stringify(b.items || []), b.scanid || null
       ]
     );
     res.json({ message: "Bill record saved", id });
@@ -763,29 +784,49 @@ app.post("/api/bill-records", auth, async (req, res) => {
 });
 
 app.get("/api/bill-records", auth, async (req, res) => {
-  const shop_id = req.shop.shop_id;
+  const shopid = req.shop.shopid;
   try {
     const rows = await query(
       `SELECT br.*, s.name AS supplier_name, s.mobile AS supplier_mobile
        FROM bill_records br
        LEFT JOIN suppliers s ON br.supplier_id = s.id
-       WHERE br.shop_id=?
+       WHERE br.shop_id = ?
        ORDER BY br.created_at DESC LIMIT 200`,
-      [shop_id]
+      [shopid]
     );
     res.json(rows);
   } catch (err) {
-    res.status(500).json({ message: "DB error" });
+    res.status(500).json({ message: "DB error", detail: err.message });
   }
 });
 
-/* ===============================
-   SERVER START
-=============================== */
-app.listen(PORT, () => {
-  console.log(`\nÃ¢Å“â€¦ Kirana POS Backend v3 Ã¢â€ â€™ http://localhost:${PORT}`);
-  console.log(`   DB  : ${process.env.DB_NAME || "kirana_pos"} @ ${process.env.DB_HOST || "localhost"}`);
-  console.log(`   AI  : Ã°Å¸Â¤â€“ Gemini Vision API (gemini-1.5-flash)`);
-  console.log(`   Key : ${process.env.GEMINI_API_KEY ? "Ã¢Å“â€¦ Configured" : "Ã¢ÂÅ’ MISSING Ã¢â‚¬â€ add GEMINI_API_KEY to .env"}`);
-  console.log(`   Mail: ${process.env.SMTP_USER ? "Ã¢Å“â€¦ Configured" : "Ã¢Å¡Â Ã¯Â¸Â  STUB"}\n`);
-});
+// Serve static files from the React app
+const distPath = path.join(__dirname, "../kirana-pos/dist");
+if (fs.existsSync(distPath)) {
+  app.use(express.static(distPath));
+  console.log(`[INFO] Serving frontend from ${distPath}`);
+
+  // Catch-all for SPA routing
+  app.get("/{*splat}", (req, res, next) => {
+    if (req.path.startsWith("/api")) return next();
+    res.sendFile(path.join(distPath, "index.html"));
+  });
+} else {
+  console.log(`[WARN] Frontend dist folder not found at ${distPath}. Run 'npm run build' in the frontend folder if you want the backend to serve it.`);
+}
+
+// ─── START ────────────────────────────────────────────────────────────────────
+ensureExtraTables()
+  .then(() => {
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`\nKirana POS Backend v3 -> http://0.0.0.0:${PORT}`);
+      console.log(`DB   : ${process.env.DBNAME} @ ${process.env.DBHOST}:${process.env.DBPORT || "3306"}`);
+      console.log(`CORS : ${corsOrigins.join(", ")}`);
+      console.log(`AI   : ${process.env.GEMINIAPIKEY ? "Configured" : "Missing GEMINIAPIKEY"}`);
+      console.log(`Mail : ${process.env.SMTPUSER ? "Configured" : "Stub"}\n`);
+    });
+  })
+  .catch((err) => {
+    console.error("Startup DB init failed:", err.message);
+    process.exit(1);
+  });

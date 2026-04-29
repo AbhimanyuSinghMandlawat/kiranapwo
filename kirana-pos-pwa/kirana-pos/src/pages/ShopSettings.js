@@ -1,21 +1,18 @@
 import { getShopSettings, saveShopSettings } from "../services/db";
 import { showToast } from "../utils/toast";
-import { getSyncStats, saveBackendToken } from "../services/syncService";
+import { getSyncStats } from "../services/syncService";
 import { t } from "../i18n/i18n";
 import QRCode from "qrcode";
 
-const API_BASE = "http://localhost:5000";
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 
 export async function renderShopSettings(container) {
-
   const mc = document.querySelector(".main-content") || container;
   const settings = await getShopSettings();
   const hasToken = !!settings?.backendToken;
 
   mc.innerHTML = `
     <section class="shop-settings">
-
-      <!-- ── Local Settings ── -->
       <div class="glass-card" style="margin-bottom:20px">
         <h1>${t("sidebar.shopSettings")}</h1>
 
@@ -37,14 +34,12 @@ export async function renderShopSettings(container) {
         </form>
       </div>
 
-      <!-- ── Cloud Sync / Backend Login ── -->
       <div class="glass-card" id="cloud-sync-card">
         <h2 style="margin-bottom:4px">☁️ Cloud Sync</h2>
         <p style="color:var(--text-secondary,#94a3b8);font-size:.85rem;margin-bottom:16px">
           Connect to the backend server to sync your data to MySQL automatically.
         </p>
 
-        <!-- Status badge -->
         <div id="sync-status-badge" style="
           display:inline-flex;align-items:center;gap:8px;
           padding:6px 14px;border-radius:99px;margin-bottom:18px;font-size:.85rem;font-weight:600;
@@ -56,13 +51,11 @@ export async function renderShopSettings(container) {
           ${hasToken ? "Connected — Sync Active" : "Not Connected"}
         </div>
 
-        <!-- Sync stats (only shown when connected) -->
         <div id="sync-stats-wrap" style="display:${hasToken ? "block" : "none"};margin-bottom:16px"></div>
 
-        <!-- Login / Register tabs -->
         <div style="display:flex;gap:8px;margin-bottom:16px">
-          <button id="tab-login"    class="btn-primary"    style="flex:1" onclick="window.__syncTab('login')">Login</button>
-          <button id="tab-register" class="btn-secondary"  style="flex:1" onclick="window.__syncTab('register')">Register Shop</button>
+          <button id="tab-login" class="btn-primary" style="flex:1" onclick="window.__syncTab('login')">Login</button>
+          <button id="tab-register" class="btn-secondary" style="flex:1" onclick="window.__syncTab('register')">Register Shop</button>
         </div>
 
         <div id="login-form-wrap">
@@ -74,7 +67,7 @@ export async function renderShopSettings(container) {
           <input id="backend-password" type="password" placeholder="••••••••" />
 
           <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap">
-            <button id="btn-connect"    class="btn-primary"   style="flex:1">🔗 Connect to Cloud</button>
+            <button id="btn-connect" class="btn-primary" style="flex:1">🔗 Connect to Cloud</button>
             <button id="btn-disconnect" class="btn-secondary" style="flex:1;${hasToken ? "" : "display:none"}">🔌 Disconnect</button>
           </div>
         </div>
@@ -103,53 +96,55 @@ export async function renderShopSettings(container) {
           color:#f87171;font-size:.85rem;
         "></div>
       </div>
-
     </section>
   `;
 
-  // ── Local settings save ──
-  document.getElementById("settings-form").onsubmit = async e => {
+  document.getElementById("settings-form").onsubmit = async (e) => {
     e.preventDefault();
 
     const shopName = document.getElementById("shop-name").value.trim();
-    const upiId    = document.getElementById("upi-id").value.trim();
-    const email    = document.getElementById("shop-email").value.trim();
+    const upiId = document.getElementById("upi-id").value.trim();
+    const email = document.getElementById("shop-email").value.trim();
 
     const upiString = `upi://pay?pa=${upiId}&pn=${encodeURIComponent(shopName)}&cu=INR`;
-    const qrImage   = upiId ? await QRCode.toDataURL(upiString) : null;
+    const qrImage = upiId ? await QRCode.toDataURL(upiString) : null;
 
-    const current = await getShopSettings() || {};
-    await saveShopSettings({ ...current, shopName, upiId, email, ...(qrImage ? { qrImage } : {}) });
+    const current = (await getShopSettings()) || {};
+    await saveShopSettings({
+      ...current,
+      shopName,
+      upiId,
+      email,
+      ...(qrImage ? { qrImage } : {})
+    });
 
     showToast(t("shopSettings.saved") || "Settings saved!", "success");
   };
 
-  // ── Tab switching ──
   window.__syncTab = (tab) => {
-    document.getElementById("login-form-wrap").style.display    = tab === "login"    ? "block" : "none";
+    document.getElementById("login-form-wrap").style.display = tab === "login" ? "block" : "none";
     document.getElementById("register-form-wrap").style.display = tab === "register" ? "block" : "none";
-    document.getElementById("tab-login").className    = tab === "login"    ? "btn-primary"   : "btn-secondary";
-    document.getElementById("tab-register").className = tab === "register" ? "btn-primary"   : "btn-secondary";
+    document.getElementById("tab-login").className = tab === "login" ? "btn-primary" : "btn-secondary";
+    document.getElementById("tab-register").className = tab === "register" ? "btn-primary" : "btn-secondary";
   };
 
-  // ── Load sync stats (with auto-refresh after background sync completes) ──
   if (hasToken) {
     loadSyncStats();
-    // Re-check after background sync cycle runs (2s startup delay + buffer)
     setTimeout(() => loadSyncStats(), 3000);
     setTimeout(() => loadSyncStats(), 6000);
   }
 
   async function loadSyncStats() {
     const stats = await getSyncStats();
-    const wrap  = document.getElementById("sync-stats-wrap");
+    const wrap = document.getElementById("sync-stats-wrap");
     if (!wrap) return;
+
     wrap.innerHTML = `
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin-bottom:4px">
-        ${stat("📦 Total",    stats.total,     "#94a3b8")}
-        ${stat("✅ Synced",   stats.synced,    "#4ade80")}
-        ${stat("⏳ Pending",  stats.pending,   "#facc15")}
-        ${stat("❌ Failed",   stats.failed,    "#f87171")}
+        ${stat("📦 Total", stats.total, "#94a3b8")}
+        ${stat("✅ Synced", stats.synced, "#4ade80")}
+        ${stat("⏳ Pending", stats.pending, "#facc15")}
+        ${stat("❌ Failed", stats.failed, "#f87171")}
       </div>
     `;
   }
@@ -166,21 +161,21 @@ export async function renderShopSettings(container) {
     `;
   }
 
-  // ── Error helper ──
   function showError(msg) {
     const el = document.getElementById("cloud-sync-error");
     el.textContent = msg;
     el.style.display = "block";
   }
+
   function clearError() {
     const el = document.getElementById("cloud-sync-error");
     if (el) el.style.display = "none";
   }
 
-  // ── Connect (Login) ──
   document.getElementById("btn-connect").onclick = async () => {
     clearError();
-    const phone    = document.getElementById("backend-phone").value.trim();
+
+    const phone = document.getElementById("backend-phone").value.trim();
     const password = document.getElementById("backend-password").value;
 
     if (!phone || !password) {
@@ -190,13 +185,13 @@ export async function renderShopSettings(container) {
 
     const btn = document.getElementById("btn-connect");
     btn.textContent = "⏳ Connecting...";
-    btn.disabled    = true;
+    btn.disabled = true;
 
     try {
       const res = await fetch(`${API_BASE}/api/login`, {
-        method:  "POST",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ owner_phone: phone, password })
+        body: JSON.stringify({ ownerphone: phone, password })
       });
 
       const data = await res.json();
@@ -206,47 +201,47 @@ export async function renderShopSettings(container) {
         return;
       }
 
-      // Save token + phone
-      const current = await getShopSettings() || {};
+      const shopId = data.shop?.id || null;
+      if (shopId) localStorage.setItem("kirana_db_name", `kirana_pos_${shopId}`);
+      const current = (await getShopSettings()) || {};
       await saveShopSettings({
         ...current,
         backendToken: data.token,
         backendPhone: phone,
-        backendShopId: data.shop?.id
+        backendShopId: shopId
       });
 
       showToast("✅ Cloud sync connected! Data will now sync to MySQL.", "success");
-      // Reload this page to refresh the status badge
       setTimeout(() => renderShopSettings(container), 500);
-
     } catch (err) {
-      showError("Cannot reach backend server. Is it running on port 5000?");
+      showError(`Cannot reach backend server at ${API_BASE || "configured URL"}.`);
     } finally {
       btn.textContent = "🔗 Connect to Cloud";
-      btn.disabled    = false;
+      btn.disabled = false;
     }
   };
 
-  // ── Disconnect ──
   document.getElementById("btn-disconnect").onclick = async () => {
-    const current = await getShopSettings() || {};
-    await saveShopSettings({ ...current, backendToken: null, backendPhone: null });
+    const current = (await getShopSettings()) || {};
+    await saveShopSettings({ ...current, backendToken: null, backendPhone: null, backendShopId: null });
+    localStorage.removeItem("kirana_db_name");
     showToast("Disconnected from cloud sync.", "info");
     setTimeout(() => renderShopSettings(container), 300);
   };
 
-  // ── Register + auto-login ──
   document.getElementById("btn-register").onclick = async () => {
     clearError();
-    const shopName  = document.getElementById("reg-shop-name").value.trim();
+
+    const shopName = document.getElementById("reg-shop-name").value.trim();
     const ownerName = document.getElementById("reg-owner-name").value.trim();
-    const phone     = document.getElementById("reg-phone").value.trim();
-    const password  = document.getElementById("reg-password").value;
+    const phone = document.getElementById("reg-phone").value.trim();
+    const password = document.getElementById("reg-password").value;
 
     if (!shopName || !ownerName || !phone || !password) {
       showError("All fields are required to register.");
       return;
     }
+
     if (password.length < 6) {
       showError("Password must be at least 6 characters.");
       return;
@@ -254,56 +249,59 @@ export async function renderShopSettings(container) {
 
     const btn = document.getElementById("btn-register");
     btn.textContent = "⏳ Registering...";
-    btn.disabled    = true;
+    btn.disabled = true;
 
     try {
-      // Step 1: Register
       const regRes = await fetch(`${API_BASE}/api/register`, {
-        method:  "POST",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({
-          shop_name: shopName, owner_name: ownerName,
-          owner_phone: phone, password
+        body: JSON.stringify({
+          shopname: shopName,
+          ownername: ownerName,
+          ownerphone: phone,
+          password
         })
       });
 
       const regData = await regRes.json();
+
       if (!regRes.ok) {
         showError(regData.message || "Registration failed.");
         return;
       }
 
-      // Step 2: Auto-login
       const loginRes = await fetch(`${API_BASE}/api/login`, {
-        method:  "POST",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ owner_phone: phone, password })
+        body: JSON.stringify({ ownerphone: phone, password })
       });
 
       const loginData = await loginRes.json();
+
       if (!loginRes.ok) {
         showError("Registered! But auto-login failed. Please login manually.");
         window.__syncTab("login");
         return;
       }
 
-      const current = await getShopSettings() || {};
+      const shopId = loginData.shop?.id || null;
+      if (shopId) localStorage.setItem("kirana_db_name", `kirana_pos_${shopId}`);
+      const current = (await getShopSettings()) || {};
       await saveShopSettings({
         ...current,
-        backendToken:  loginData.token,
-        backendPhone:  phone,
-        backendShopId: loginData.shop?.id,
-        shopName:      shopName
+        backendToken: loginData.token,
+        backendPhone: phone,
+        backendShopId: shopId,
+        shopName
       });
 
-      showToast(`✅ Shop registered & connected! Shop ID: ${regData.shop_id}`, "success");
+      showToast(`✅ Shop registered & connected! Shop ID: ${regData.shopid}`, "success");
       setTimeout(() => renderShopSettings(container), 500);
-
     } catch (err) {
-      showError("Cannot reach backend. Is it running on port 5000?");
+      showError(`Cannot reach backend server at ${API_BASE || "configured URL"}.`);
     } finally {
       btn.textContent = "📝 Register Shop & Connect";
-      btn.disabled    = false;
+      btn.disabled = false;
     }
   };
 }

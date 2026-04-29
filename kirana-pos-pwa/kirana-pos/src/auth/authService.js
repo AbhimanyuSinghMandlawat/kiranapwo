@@ -11,14 +11,17 @@ import {
 import { ROLES } from "./roles";
 import { logAudit } from "../services/auditLog";
 
-const BACKEND = "http://localhost:5000";
+// In production (Vercel) the /api/* calls are proxied by vercel.json → Render.
+// In local dev vite.config.js proxies /api/* → localhost:5000.
+// Using a relative base means ZERO hardcoded URLs — works everywhere.
+
 
 // Simple hashing for local auth
 async function hashPassword(password) {
   const msgBuffer = new TextEncoder().encode(password);
   const hashBuffer = await crypto.subtle.digest("SHA-256", msgBuffer);
   return Array.from(new Uint8Array(hashBuffer))
-    .map(b => b.toString(16).padStart(2, "0"))
+    .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
 }
 
@@ -29,31 +32,29 @@ async function hashPassword(password) {
 ------------------------------------------------------- */
 async function tryBackendLogin(username, password) {
   try {
-    if (!navigator.onLine) return;
+    if (!navigator.onLine || !API_BASE) return;
 
     const settings = await getShopSettings();
-    // Use stored phone OR fall back to username (for old accounts)
     const ownerPhone = settings?.ownerPhone || username;
     if (!ownerPhone) return;
 
-    // Step 1: Try to login
-    let loginRes = await fetch(`${BACKEND}/api/login`, {
-      method:  "POST",
+    let loginRes = await fetch(`${API_BASE}/api/login`, {
+      method: "POST",
       headers: { "Content-Type": "application/json" },
-      body:    JSON.stringify({ owner_phone: ownerPhone, password }),
-      signal:  AbortSignal.timeout(5000)
+      body: JSON.stringify({ ownerphone: ownerPhone, password }),
+      signal: AbortSignal.timeout(5000)
     });
 
-    // Step 2: If login fails (400 = not found on backend), auto-register first
     if (!loginRes.ok && loginRes.status === 400) {
       const user = await getUserByUsername(username);
-      const regRes = await fetch(`${BACKEND}/api/register`, {
-        method:  "POST",
+
+      const regRes = await fetch(`${API_BASE}/api/register`, {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({
-          shop_name:   (user?.name || username) + "'s Shop",
-          owner_name:  user?.name || username,
-          owner_phone: ownerPhone,
+        body: JSON.stringify({
+          shopname: (user?.name || username) + "'s Shop",
+          ownername: user?.name || username,
+          ownerphone: ownerPhone,
           password
         }),
         signal: AbortSignal.timeout(5000)
@@ -64,33 +65,45 @@ async function tryBackendLogin(username, password) {
         return;
       }
 
-      // Retry login after registration
-      loginRes = await fetch(`${BACKEND}/api/login`, {
-        method:  "POST",
+      loginRes = await fetch(`${API_BASE}/api/login`, {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ owner_phone: ownerPhone, password }),
-        signal:  AbortSignal.timeout(5000)
+        body: JSON.stringify({ ownerphone: ownerPhone, password }),
+        signal: AbortSignal.timeout(5000)
       });
     }
 
     if (!loginRes.ok) return;
 
     const data = await loginRes.json();
+
     if (data.token) {
+      const shopId = data.shop?.id || null;
+      // Namespace IndexedDB per shop so accounts never share data
+      if (shopId) {
+        localStorage.setItem("kirana_db_name", `kirana_pos_${shopId}`);
+      }
       await saveShopSettings({
         ...(settings || {}),
         ownerPhone,
-        backendToken:  data.token,
-        backendShopId: data.shop?.id || null
+        backendToken: data.token,
+        backendShopId: shopId
       });
-      console.log("[Auth] ✅ Backend token obtained – sync enabled");
+      console.log("[Auth] Backend token obtained - sync enabled");
     }
   } catch (e) {
     console.warn("[Auth] Backend login failed (offline?):", e.message);
   }
 }
 
-export async function createOwnerAccount({ name, username, password, phone, email, shopName }) {
+export async function createOwnerAccount({
+  name,
+  username,
+  password,
+  phone,
+  email,
+  shopName
+}) {
   const existing = await getUserByUsername(username);
 
   if (existing) {
@@ -106,7 +119,7 @@ export async function createOwnerAccount({ name, username, password, phone, emai
   const user = {
     id: crypto.randomUUID(),
     name,
-    username,          // phone is username
+    username,
     password: hashed,
     role: ROLES.OWNER,
     email: email || null,
@@ -115,73 +128,86 @@ export async function createOwnerAccount({ name, username, password, phone, emai
 
   await saveUser(user);
 
-  // Store shop settings locally
   const existingSettings = await getShopSettings();
   await saveShopSettings({
     ...(existingSettings || {}),
     ownerPhone: phone || username,
-    ownerName:  name,
-    shopName:   shopName || (name + "'s Shop"),
+    ownerName: name,
+    shopName: shopName || `${name}'s Shop`,
     ownerEmail: email || null
   });
 
-  // Register on backend + get JWT (non-blocking)
-  await tryBackendRegisterAndLogin({ name, username, password, phone, email, shopName });
+  await tryBackendRegisterAndLogin({
+    name,
+    username,
+    password,
+    phone,
+    email,
+    shopName
+  });
 }
-
 
 /* -------------------------------------------------------
    Register shop on backend (once) and store JWT token.
-   Called during createOwnerAccount – fails silently if offline.
+   Called during createOwnerAccount - fails silently if offline.
 ------------------------------------------------------- */
-async function tryBackendRegisterAndLogin({ name, username, password, phone, email, shopName }) {
+async function tryBackendRegisterAndLogin({
+  name,
+  username,
+  password,
+  phone,
+  email,
+  shopName
+}) {
   try {
-    if (!navigator.onLine) return;
+    if (!navigator.onLine || !API_BASE) return;
 
     const ownerPhone = phone || username;
 
-    // Step 1: Register on backend
-    const regRes = await fetch(`${BACKEND}/api/register`, {
+    const regRes = await fetch(`${API_BASE}/api/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        shop_name:    shopName || (name + "'s Shop"),
-        owner_name:   name,
-        owner_phone:  ownerPhone,
-        owner_email:  email || null,
+        shopname: shopName || `${name}'s Shop`,
+        ownername: name,
+        ownerphone: ownerPhone,
+        owneremail: email || null,
         password
       }),
       signal: AbortSignal.timeout(5000)
     });
 
-    // 409 = already registered — try to login anyway
     if (!regRes.ok && regRes.status !== 409) return;
 
-    // Step 2: Login to get JWT
-    const loginRes = await fetch(`${BACKEND}/api/login`, {
+    const loginRes = await fetch(`${API_BASE}/api/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ owner_phone: ownerPhone, password }),
+      body: JSON.stringify({ ownerphone: ownerPhone, password }),
       signal: AbortSignal.timeout(5000)
     });
 
     if (!loginRes.ok) return;
 
     const data = await loginRes.json();
+
     if (data.token) {
+      const shopId = data.shop?.id || null;
+      // Namespace IndexedDB per shop so accounts never share data
+      if (shopId) {
+        localStorage.setItem("kirana_db_name", `kirana_pos_${shopId}`);
+      }
       const current = await getShopSettings();
       await saveShopSettings({
         ...(current || {}),
-        backendToken:  data.token,
-        backendShopId: data.shop?.id || null
+        backendToken: data.token,
+        backendShopId: shopId
       });
-      console.log("[Auth] Backend token obtained ✅");
+      console.log("[Auth] Backend token obtained");
     }
   } catch (e) {
-    console.warn("[Auth] Backend registration failed (offline?) – local only:", e.message);
+    console.warn("[Auth] Backend registration failed (offline?) - local only:", e.message);
   }
 }
-
 
 export async function login(username, password) {
   const user = await getUserByUsername(username);
@@ -199,9 +225,9 @@ export async function login(username, password) {
   await saveSession({
     id: "current",
     user: {
-      id:    user.id,
-      name:  user.name,
-      role:  user.role,
+      id: user.id,
+      name: user.name,
+      role: user.role,
       upiId: user.upiId || null
     },
     loginTime: Date.now()
@@ -213,26 +239,32 @@ export async function login(username, password) {
     metadata: { username }
   });
 
-  // Try to get backend JWT in background (non-blocking)
   tryBackendLogin(username, password);
 
   return user;
 }
 
 export async function logout() {
-
-  /* clear owner session */
+  // Clear backend token from settings so the next account gets a fresh token
+  try {
+    const current = await getShopSettings();
+    if (current) {
+      await saveShopSettings({
+        ...current,
+        backendToken: null,
+        backendShopId: null,
+        backendPhone: null
+      });
+    }
+  } catch (e) {
+    console.warn("[Auth] Could not clear backend token on logout:", e.message);
+  }
+  // Remove the shop-scoped DB key so the next login opens a fresh DB namespace
+  localStorage.removeItem("kirana_db_name");
   await clearSession();
-
-  /* clear customer session */
   sessionStorage.removeItem("customer_session");
-
-  /* clear any legacy session */
   sessionStorage.removeItem("session");
-
-  /* redirect to welcome page */
   location.hash = "";
-
 }
 
 export async function getCurrentUser() {
