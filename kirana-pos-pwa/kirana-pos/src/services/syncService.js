@@ -4,7 +4,8 @@ import { getShopSettings } from "./db";
 // In production (Vercel) /api/* is proxied to Render via vercel.json.
 // In local dev /api/* is proxied to localhost:5000 via vite.config.js.
 // Empty string = relative URL → works in both environments.
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
+const rawApiUrl = import.meta.env.VITE_API_URL || "https://kiranapwoo-backend.onrender.com";
+const API_BASE = rawApiUrl.endsWith("/") ? rawApiUrl.slice(0, -1) : rawApiUrl;
 
 const MAX_RETRIES = 5;  // abandon item after 5 consecutive failures
 

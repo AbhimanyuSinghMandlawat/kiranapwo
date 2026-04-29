@@ -9,7 +9,8 @@ import {
 } from "../services/db";
 import { showToast } from "../utils/toast";
 
-const API_BASE = import.meta.env.VITE_API_URL || "https://kiranapwoo-backend.onrender.com";
+const rawApiUrl = import.meta.env.VITE_API_URL || "https://kiranapwoo-backend.onrender.com";
+const API_BASE = rawApiUrl.endsWith("/") ? rawApiUrl.slice(0, -1) : rawApiUrl;
 
 export async function renderBillScanner(container) {
   const settings = await getShopSettings();

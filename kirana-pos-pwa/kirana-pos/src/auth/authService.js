@@ -14,7 +14,8 @@ import { logAudit } from "../services/auditLog";
 // In production (Vercel) the /api/* calls are proxied by vercel.json → Render.
 // In local dev vite.config.js proxies /api/* → localhost:5000.
 // Using a relative base means ZERO hardcoded URLs — works everywhere.
-
+const rawApiUrl = import.meta.env.VITE_API_URL || "https://kiranapwoo-backend.onrender.com";
+const API_BASE = rawApiUrl.endsWith("/") ? rawApiUrl.slice(0, -1) : rawApiUrl;
 
 // Simple hashing for local auth
 async function hashPassword(password) {

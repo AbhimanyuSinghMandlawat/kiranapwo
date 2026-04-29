@@ -4,7 +4,8 @@ import { getSyncStats } from "../services/syncService";
 import { t } from "../i18n/i18n";
 import QRCode from "qrcode";
 
-const API_BASE = import.meta.env.VITE_API_URL || 'https://kiranapwoo-backend.onrender.com';
+const rawApiUrl = import.meta.env.VITE_API_URL || 'https://kiranapwoo-backend.onrender.com';
+const API_BASE = rawApiUrl.endsWith("/") ? rawApiUrl.slice(0, -1) : rawApiUrl;
 
 export async function renderShopSettings(container) {
   const mc = document.querySelector(".main-content") || container;
