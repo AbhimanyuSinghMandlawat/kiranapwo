@@ -807,7 +807,7 @@ if (fs.existsSync(distPath)) {
   console.log(`[INFO] Serving frontend from ${distPath}`);
 
   // Catch-all for SPA routing
-  app.get("*", (req, res, next) => {
+  app.get("/{*splat}", (req, res, next) => {
     if (req.path.startsWith("/api")) return next();
     res.sendFile(path.join(distPath, "index.html"));
   });
