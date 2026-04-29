@@ -1,22 +1,19 @@
 import { renderLayout } from "../components/Layout";
 import {
   getShopSettings,
-  saveSupplier, getAllSuppliers,
-  saveBillRecord, getAllBillRecords,
+  saveSupplier,
+  getAllSuppliers,
+  saveBillRecord,
+  getAllBillRecords,
   upsertStockByName
 } from "../services/db";
 import { showToast } from "../utils/toast";
 
-<<<<<<< HEAD
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
-
-=======
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
->>>>>>> 2cff26b297962b9bd8ebed1b5583e7d60d2fe545
+const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
 
 export async function renderBillScanner(container) {
   const settings = await getShopSettings();
-  const token    = settings?.backendToken || null;
+  const token = settings?.backendToken || null;
 
   container.innerHTML = await renderLayout(`
     <section class="dashboard bill-scanner-page">
@@ -110,35 +107,35 @@ export async function renderBillScanner(container) {
   let selectedFile = null;
 
   //  Tabs 
-  const tabScan    = document.getElementById("tab-scan");
+  const tabScan = document.getElementById("tab-scan");
   const tabHistory = document.getElementById("tab-history");
-  const scanPanel  = document.getElementById("scan-panel");
-  const histPanel  = document.getElementById("history-panel");
+  const scanPanel = document.getElementById("scan-panel");
+  const histPanel = document.getElementById("history-panel");
 
   tabScan.onclick = () => {
-    tabScan.classList.add("active");    tabScan.setAttribute("aria-selected","true");
-    tabHistory.classList.remove("active"); tabHistory.setAttribute("aria-selected","false");
-    scanPanel.style.display  = "";
-    histPanel.style.display  = "none";
+    tabScan.classList.add("active"); tabScan.setAttribute("aria-selected", "true");
+    tabHistory.classList.remove("active"); tabHistory.setAttribute("aria-selected", "false");
+    scanPanel.style.display = "";
+    histPanel.style.display = "none";
   };
   tabHistory.onclick = async () => {
-    tabHistory.classList.add("active");  tabHistory.setAttribute("aria-selected","true");
-    tabScan.classList.remove("active");  tabScan.setAttribute("aria-selected","false");
-    scanPanel.style.display  = "none";
-    histPanel.style.display  = "";
+    tabHistory.classList.add("active"); tabHistory.setAttribute("aria-selected", "true");
+    tabScan.classList.remove("active"); tabScan.setAttribute("aria-selected", "false");
+    scanPanel.style.display = "none";
+    histPanel.style.display = "";
     await renderHistory();
   };
 
   //  File picker 
-  const fileInput  = document.getElementById("bill-file");
-  const chooseBtn  = document.getElementById("choose-file-btn");
-  const dropZone   = document.getElementById("drop-zone");
+  const fileInput = document.getElementById("bill-file");
+  const chooseBtn = document.getElementById("choose-file-btn");
+  const dropZone = document.getElementById("drop-zone");
   const previewStrip = document.getElementById("preview-strip");
 
   chooseBtn.onclick = () => fileInput.click();
   fileInput.onchange = () => { if (fileInput.files[0]) prepareFile(fileInput.files[0]); };
 
-  dropZone.ondragover  = e => { e.preventDefault(); dropZone.classList.add("dragging"); };
+  dropZone.ondragover = e => { e.preventDefault(); dropZone.classList.add("dragging"); };
   dropZone.ondragleave = () => dropZone.classList.remove("dragging");
   dropZone.ondrop = e => {
     e.preventDefault();
@@ -155,7 +152,7 @@ export async function renderBillScanner(container) {
     selectedFile = file;
     const reader = new FileReader();
     reader.onload = ev => {
-      document.getElementById("preview-img").src      = ev.target.result;
+      document.getElementById("preview-img").src = ev.target.result;
       document.getElementById("preview-name").textContent = file.name;
       previewStrip.style.display = "flex";
     };
@@ -167,40 +164,40 @@ export async function renderBillScanner(container) {
   };
 
   // -- State machine constants --
-  const STATES = { IDLE:"idle", UPLOADING:"uploading", CHECKING:"checking", EXTRACTING:"extracting", DONE:"done", ERROR:"error" };
+  const STATES = { IDLE: "idle", UPLOADING: "uploading", CHECKING: "checking", EXTRACTING: "extracting", DONE: "done", ERROR: "error" };
   let scanState = STATES.IDLE;
 
   function setScanState(state, message) {
     scanState = state;
     const statusText = document.getElementById("scan-status-text");
-    const bar        = document.getElementById("scan-progress-bar");
-    const steps      = ["step1","step2","step3","step4"];
+    const bar = document.getElementById("scan-progress-bar");
+    const steps = ["step1", "step2", "step3", "step4"];
     const cfg = {
-      uploading:  { pct:15,  step:0, text:" Uploading bill image...",             color:"#6366f1" },
-      checking:   { pct:42,  step:1, text:" Checking image quality with AI...",   color:"#f59e0b" },
-      extracting: { pct:74,  step:2, text:" AI extracting all bill data...",       color:"#22c55e" },
-      done:       { pct:100, step:3, text:"OK Extraction complete!",                 color:"#22c55e" },
-      error:      { pct:100, step:-1,text:message||" Scan failed",                 color:"#ef4444" }
+      uploading: { pct: 15, step: 0, text: " Uploading bill image...", color: "#6366f1" },
+      checking: { pct: 42, step: 1, text: " Checking image quality with AI...", color: "#f59e0b" },
+      extracting: { pct: 74, step: 2, text: " AI extracting all bill data...", color: "#22c55e" },
+      done: { pct: 100, step: 3, text: "OK Extraction complete!", color: "#22c55e" },
+      error: { pct: 100, step: -1, text: message || " Scan failed", color: "#ef4444" }
     }[state];
     if (!cfg) return;
     if (statusText) statusText.textContent = cfg.text;
     if (bar) { bar.style.width = cfg.pct + "%"; bar.style.background = cfg.color; }
     steps.forEach((id, i) => {
       const el = document.getElementById(id); if (!el) return;
-      el.classList.toggle("active",    i <= cfg.step);
-      el.classList.toggle("completed", i <  cfg.step);
+      el.classList.toggle("active", i <= cfg.step);
+      el.classList.toggle("completed", i < cfg.step);
     });
   }
 
   // -- Process (upload) --
   async function processFile(file) {
-    const uploadArea  = document.getElementById("scanner-upload-area");
+    const uploadArea = document.getElementById("scanner-upload-area");
     const progressDiv = document.getElementById("scanner-progress");
-    const resultDiv   = document.getElementById("scanner-result");
+    const resultDiv = document.getElementById("scanner-result");
 
-    uploadArea.style.display  = "none";
+    uploadArea.style.display = "none";
     progressDiv.style.display = "block";
-    resultDiv.style.display   = "none";
+    resultDiv.style.display = "none";
     setScanState(STATES.UPLOADING);
 
     if (!token) {
@@ -218,15 +215,15 @@ export async function renderBillScanner(container) {
       setScanState(STATES.CHECKING);
 
       const res = await fetch(`${API_BASE}/api/scan-bill`, {
-        method:  "POST",
+        method: "POST",
         headers: { Authorization: `Bearer ${token}` },
-        body:    formData
+        body: formData
       });
 
       setScanState(STATES.EXTRACTING);
 
       let data;
-      try   { data = await res.json(); }
+      try { data = await res.json(); }
       catch { data = { message: `Server returned HTTP ${res.status}` }; }
 
       if (!res.ok) {
@@ -240,7 +237,7 @@ export async function renderBillScanner(container) {
       await sleep(700);
 
       if (data.imageQuality === "poor" || (data.confidence != null && data.confidence < 35)) {
-        showToast("(!!) Low confidence (" + (data.confidence||0) + "%) - please verify fields.", "warn");
+        showToast("(!!) Low confidence (" + (data.confidence || 0) + "%) - please verify fields.", "warn");
       }
 
       progressDiv.style.display = "none";
@@ -265,27 +262,27 @@ export async function renderBillScanner(container) {
     const resultDiv = document.getElementById("scanner-result");
     resultDiv.style.display = "block";
 
-    const icons = { IMAGE_UNREADABLE:"", LOW_CONFIDENCE:"(!!)", NOT_CONNECTED:"", AUTH_ERROR:"", NETWORK_ERROR:"", SCAN_FAILED:"", RATE_LIMITED:"...", UNKNOWN:"(!!)" };
-    const icon  = icons[errorCode] || "(!!)";
+    const icons = { IMAGE_UNREADABLE: "", LOW_CONFIDENCE: "(!!)", NOT_CONNECTED: "", AUTH_ERROR: "", NETWORK_ERROR: "", SCAN_FAILED: "", RATE_LIMITED: "...", UNKNOWN: "(!!)" };
+    const icon = icons[errorCode] || "(!!)";
 
     const allTips = {
-      IMAGE_UNREADABLE: [["","Use natural light directly above the bill"],["","Hold camera flat and parallel to bill"],["","Keep hands steady, rest elbows on surface"],["","Ensure full bill is in frame"]],
-      LOW_CONFIDENCE:   [["","Use better lighting  shadows reduce accuracy"],["","Zoom in so bill fills the frame"],["","Clean camera lens before shooting"]],
-      NETWORK_ERROR:    [["","Run: node server.js in the backend folder"],["","Check internet/LAN connection"],["","Refresh the app and try again"]],
-      NOT_CONNECTED:    [["","Go to Shop Settings and connect backend"],["","Log out and log back in"]],
-      RATE_LIMITED:     [["...","Wait the indicated time then click Retry Scan"],["","Gemini free tier allows 30 scans/minute"],["","You can try closing and reopening the scanner"]],
+      IMAGE_UNREADABLE: [["", "Use natural light directly above the bill"], ["", "Hold camera flat and parallel to bill"], ["", "Keep hands steady, rest elbows on surface"], ["", "Ensure full bill is in frame"]],
+      LOW_CONFIDENCE: [["", "Use better lighting  shadows reduce accuracy"], ["", "Zoom in so bill fills the frame"], ["", "Clean camera lens before shooting"]],
+      NETWORK_ERROR: [["", "Run: node server.js in the backend folder"], ["", "Check internet/LAN connection"], ["", "Refresh the app and try again"]],
+      NOT_CONNECTED: [["", "Go to Shop Settings and connect backend"], ["", "Log out and log back in"]],
+      RATE_LIMITED: [["...", "Wait the indicated time then click Retry Scan"], ["", "Gemini free tier allows 30 scans/minute"], ["", "You can try closing and reopening the scanner"]],
     };
-    const tips = allTips[errorCode] || [["","Try uploading again"],["","Ensure bill is clearly visible"]];
+    const tips = allTips[errorCode] || [["", "Try uploading again"], ["", "Ensure bill is clearly visible"]];
 
-    const titles = { IMAGE_UNREADABLE:"Image Unreadable", LOW_CONFIDENCE:"Could Not Extract Data", NETWORK_ERROR:"Connection Failed", AUTH_ERROR:"Session Expired", NOT_CONNECTED:"Not Connected", RATE_LIMITED:"AI Rate Limit" };
-    const title  = titles[errorCode] || "Scan Failed";
+    const titles = { IMAGE_UNREADABLE: "Image Unreadable", LOW_CONFIDENCE: "Could Not Extract Data", NETWORK_ERROR: "Connection Failed", AUTH_ERROR: "Session Expired", NOT_CONNECTED: "Not Connected", RATE_LIMITED: "AI Rate Limit" };
+    const title = titles[errorCode] || "Scan Failed";
 
     resultDiv.innerHTML = `
       <div class="glass-card scan-error-card">
         <div class="scan-error-icon">${icon}</div>
         <h3 class="scan-error-title">${title}</h3>
         <p class="scan-error-msg">${message}</p>
-        <div class="scan-error-tips">${tips.map(([e,t])=>`<div class="tip"><span>${e}</span>${t}</div>`).join("")}</div>
+        <div class="scan-error-tips">${tips.map(([e, t]) => `<div class="tip"><span>${e}</span>${t}</div>`).join("")}</div>
         <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:8px">
           <button id="retry-scan-btn"   class="btn-scan-upload" style="gap:6px"> Retry Scan</button>
           <button id="new-image-btn"    class="btn-scan-upload" style="background:rgba(255,255,255,0.06);color:#94a3b8;border:1px solid rgba(255,255,255,0.1)"> New Image</button>
@@ -295,14 +292,14 @@ export async function renderBillScanner(container) {
       resultDiv.style.display = "none";
       if (selectedFile) {
         document.getElementById("scanner-upload-area").style.display = "block";
-        const bar = document.getElementById("scan-progress-bar"); if(bar) bar.style.width="0%";
+        const bar = document.getElementById("scan-progress-bar"); if (bar) bar.style.width = "0%";
       } else { resetUI(); }
     };
     document.getElementById("new-image-btn").onclick = resetUI;
   }
 
   function resetUI() {
-    document.getElementById("scanner-progress").style.display   = "none";
+    document.getElementById("scanner-progress").style.display = "none";
     document.getElementById("scanner-upload-area").style.display = "block";
     previewStrip.style.display = "none";
     selectedFile = null;
@@ -313,10 +310,10 @@ export async function renderBillScanner(container) {
     const resultDiv = document.getElementById("scanner-result");
     resultDiv.style.display = "block";
 
-    const items    = data.inventory_items || [];
-    const supplier = data.supplier        || {};
-    const bill     = data.bill            || {};
-    const conf     = data.confidence      || 0;
+    const items = data.inventory_items || [];
+    const supplier = data.supplier || {};
+    const bill = data.bill || {};
+    const conf = data.confidence || 0;
     const confColor = conf >= 70 ? "#4caf50" : conf >= 40 ? "#ff9800" : "#f44336";
 
     // Load known suppliers for autocomplete
@@ -392,8 +389,8 @@ export async function renderBillScanner(container) {
             <label>Payment Method</label>
             <select id="bill-payment" class="scan-input">
               <option value="">-- Select --</option>
-              <option value="cash"   ${bill.payment_method === "cash"   ? "selected" : ""}>Cash</option>
-              <option value="upi"    ${bill.payment_method === "upi"    ? "selected" : ""}>UPI</option>
+              <option value="cash"   ${bill.payment_method === "cash" ? "selected" : ""}>Cash</option>
+              <option value="upi"    ${bill.payment_method === "upi" ? "selected" : ""}>UPI</option>
               <option value="credit" ${bill.payment_method === "credit" ? "selected" : ""}>Credit</option>
               <option value="cheque" ${bill.payment_method === "cheque" ? "selected" : ""}>Cheque</option>
             </select>
@@ -449,7 +446,7 @@ export async function renderBillScanner(container) {
     //  Delegated listeners 
     document.getElementById("add-item-row").onclick = () => {
       const list = document.getElementById("extracted-items-list");
-      const idx  = list.querySelectorAll(".item-row").length;
+      const idx = list.querySelectorAll(".item-row").length;
       const wrap = document.createElement("div");
       wrap.innerHTML = buildItemRow({}, idx);
       const row = wrap.firstElementChild;
@@ -468,15 +465,15 @@ export async function renderBillScanner(container) {
     document.getElementById("sup-name").addEventListener("change", async e => {
       const match = knownSuppliers.find(s => s.name === e.target.value);
       if (match) {
-        document.getElementById("sup-biz").value    = match.business_name || "";
-        document.getElementById("sup-mobile").value = match.mobile        || "";
-        document.getElementById("sup-gst").value    = match.gst_number    || "";
+        document.getElementById("sup-biz").value = match.business_name || "";
+        document.getElementById("sup-mobile").value = match.mobile || "";
+        document.getElementById("sup-gst").value = match.gst_number || "";
         showToast("Supplier details auto-filled OK", "info");
       }
     });
 
-    document.getElementById("save-all-btn").onclick   = () => saveAll(data.scanId);
-    document.getElementById("scan-another").onclick   = resetUI;
+    document.getElementById("save-all-btn").onclick = () => saveAll(data.scanId);
+    document.getElementById("scan-another").onclick = resetUI;
   }
 
   //  Row builder 
@@ -486,12 +483,12 @@ export async function renderBillScanner(container) {
       : "";
     return `
       <div class="item-row" data-index="${i}">
-        <input class="scan-input ir-name"  value="${escHtml(item.item_name  || '')}" placeholder="Item name" />
+        <input class="scan-input ir-name"  value="${escHtml(item.item_name || '')}" placeholder="Item name" />
         <input class="scan-input ir-cost"  value="${item.cost_price || ''}"  type="number" min="0" step="0.01" placeholder="0.00" />
         <input class="scan-input ir-sell"  value="${item.sell_price || ''}"  type="number" min="0" step="0.01" placeholder="0.00" />
-        <input class="scan-input ir-qty"   value="${item.quantity   || 1}"   type="number" min="1" placeholder="1" />
+        <input class="scan-input ir-qty"   value="${item.quantity || 1}"   type="number" min="1" placeholder="1" />
         <input class="scan-input ir-unit"  value="${escHtml(item.unit || 'pcs')}"    placeholder="pcs" />
-        <input class="scan-input ir-alert" value="${item.alert      || ''}"  type="number" min="0" placeholder="0" />
+        <input class="scan-input ir-alert" value="${item.alert || ''}"  type="number" min="0" placeholder="0" />
         <span  class="margin-display ir-margin">${margin ? margin + "%" : ""}</span>
         <button class="btn-remove-row" title="Remove">[X]</button>
       </div>
@@ -528,10 +525,10 @@ export async function renderBillScanner(container) {
 
       if (supName) {
         const supObj = {
-          name:          supName,
-          business_name: document.getElementById("sup-biz")?.value.trim()    || null,
-          mobile:        document.getElementById("sup-mobile")?.value.trim() || null,
-          gst_number:    document.getElementById("sup-gst")?.value.trim()    || null
+          name: supName,
+          business_name: document.getElementById("sup-biz")?.value.trim() || null,
+          mobile: document.getElementById("sup-mobile")?.value.trim() || null,
+          gst_number: document.getElementById("sup-gst")?.value.trim() || null
         };
 
         // Save locally first
@@ -540,22 +537,22 @@ export async function renderBillScanner(container) {
         // Then sync to backend (fire-and-forget, no block)
         if (token) {
           fetch(`${API_BASE}/api/suppliers`, {
-            method:  "POST",
+            method: "POST",
             headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-            body:    JSON.stringify({ ...supObj, id: supplierId })
-          }).catch(() => {});
+            body: JSON.stringify({ ...supObj, id: supplierId })
+          }).catch(() => { });
         }
       }
 
       // 2. Collect items from UI
-      const rows   = document.querySelectorAll(".item-row");
+      const rows = document.querySelectorAll(".item-row");
       const uiItems = [];
       rows.forEach(row => {
         const name = row.querySelector(".ir-name")?.value.trim();
         const cost = parseFloat(row.querySelector(".ir-cost")?.value) || 0;
         const sell = parseFloat(row.querySelector(".ir-sell")?.value) || 0;
-        const qty  = parseFloat(row.querySelector(".ir-qty")?.value)  || 1;
-        const unit = row.querySelector(".ir-unit")?.value.trim()      || "pcs";
+        const qty = parseFloat(row.querySelector(".ir-qty")?.value) || 1;
+        const unit = row.querySelector(".ir-unit")?.value.trim() || "pcs";
         const alrt = parseFloat(row.querySelector(".ir-alert")?.value) || 5;
         if (name) uiItems.push({ name, cost, sell, qty, unit, alert: alrt });
       });
@@ -566,40 +563,40 @@ export async function renderBillScanner(container) {
         if (!item.name || item.qty <= 0) { skipped++; continue; }
         try {
           const result = await upsertStockByName({
-            name:      item.name,
-            price:     item.sell || item.cost,
+            name: item.name,
+            price: item.sell || item.cost,
             costPrice: item.cost,
-            quantity:  item.qty,
+            quantity: item.qty,
             threshold: item.alert,
-            unit:      item.unit,
+            unit: item.unit,
             createdAt: Date.now()
           });
           if (result === "created") created++;
-          else                      updated++;
+          else updated++;
         } catch (e) { skipped++; }
       }
 
       // 4. Save bill record locally
       const billData = {
-        supplier_id:    supplierId,
-        supplier_name:  supName || null,
-        bill_number:    document.getElementById("bill-number")?.value.trim()  || null,
-        bill_date:      document.getElementById("bill-date")?.value.trim()    || null,
-        total_amount:   parseFloat(document.getElementById("bill-total")?.value) || 0,
-        tax_amount:     parseFloat(document.getElementById("bill-tax")?.value)   || 0,
-        payment_method: document.getElementById("bill-payment")?.value          || null,
-        scan_id:        scanId,
-        items:          uiItems
+        supplier_id: supplierId,
+        supplier_name: supName || null,
+        bill_number: document.getElementById("bill-number")?.value.trim() || null,
+        bill_date: document.getElementById("bill-date")?.value.trim() || null,
+        total_amount: parseFloat(document.getElementById("bill-total")?.value) || 0,
+        tax_amount: parseFloat(document.getElementById("bill-tax")?.value) || 0,
+        payment_method: document.getElementById("bill-payment")?.value || null,
+        scan_id: scanId,
+        items: uiItems
       };
       const billId = await saveBillRecord(billData);
 
       // 5. Sync bill record to backend
       if (token) {
         fetch(`${API_BASE}/api/bill-records`, {
-          method:  "POST",
+          method: "POST",
           headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-          body:    JSON.stringify({ ...billData, id: billId })
-        }).catch(() => {});
+          body: JSON.stringify({ ...billData, id: billId })
+        }).catch(() => { });
       }
 
       //  Success toasts 
@@ -609,7 +606,7 @@ export async function renderBillScanner(container) {
       if (created > 0) showToast(`OK ${created} new item(s) added to stock`, "success");
       if (updated > 0) showToast(` ${updated} item(s) quantity updated`, "info");
       if (skipped > 0) showToast(` ${skipped} item(s) skipped (empty)`, "info");
-      if (supplierId)  showToast(` Supplier "${supName}" saved`, "success");
+      if (supplierId) showToast(` Supplier "${supName}" saved`, "success");
       if (billData.bill_number) showToast(` Bill #${billData.bill_number} recorded`, "info");
 
     } catch (err) {
@@ -622,8 +619,8 @@ export async function renderBillScanner(container) {
 
   //  History tab 
   async function renderHistory() {
-    const listEl   = document.getElementById("history-list");
-    const countEl  = document.getElementById("history-count");
+    const listEl = document.getElementById("history-list");
+    const countEl = document.getElementById("history-count");
     listEl.innerHTML = "<p style='padding:20px;color:#888'>Loading</p>";
 
     const records = await getAllBillRecords();
@@ -654,7 +651,7 @@ export async function renderBillScanner(container) {
 
 //  Utility 
 function escHtml(str) {
-  return String(str || "").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+  return String(str || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
 //  Styles 
