@@ -9,7 +9,7 @@ import {
 } from "../services/db";
 import { showToast } from "../utils/toast";
 
-const API_BASE = import.meta.env.VITE_API_URL || "http://localhost:5000";
+const API_BASE = import.meta.env.VITE_API_URL || "https://kiranapwoo-backend.onrender.com";
 
 export async function renderBillScanner(container) {
   const settings = await getShopSettings();
