@@ -191,26 +191,34 @@ export async function login(username, password) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ ownerphone: username, password })
         });
+        const data = await res.json().catch(() => ({}));
+        
         if (res.ok) {
-          const data = await res.json();
           await createOwnerAccount({
-            name: data.shop.owner_name || username,
-            username: data.shop.owner_phone || username,
+            name: data.shop?.owner_name || username,
+            username: data.shop?.owner_phone || username,
             password: password,
-            phone: data.shop.owner_phone || username,
-            email: data.shop.owner_email || "",
-            shopName: data.shop.shop_name || "My Shop"
+            phone: data.shop?.owner_phone || username,
+            email: data.shop?.owner_email || "",
+            shopName: data.shop?.shop_name || "My Shop"
           });
           user = await getUserByUsername(username);
+        } else {
+          // Throw the backend error so the UI shows it (e.g., "Invalid password", "Shop not found")
+          throw new Error(data.message || "Cloud login failed");
         }
       } catch (e) {
-        console.warn("Cloud fallback login failed", e);
+        // If it's the backend error we just threw, re-throw it so the UI catches it
+        if (e.message !== "Failed to fetch" && !e.message.includes("NetworkError")) {
+          throw e; 
+        }
+        console.warn("Cloud fallback network error", e);
       }
     }
   }
 
   if (!user) {
-    throw new Error("User not found locally or in cloud.");
+    throw new Error("User not found (locally or in cloud). Please register.");
   }
 
   const hashed = await hashPassword(password);
