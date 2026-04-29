@@ -1,0 +1,122 @@
+/* =========================================
+   CUSTOMER PORTAL SIDEBAR — ISOLATED
+========================================= */
+
+.customer-app-layout{
+
+  display:flex;
+  min-height:100vh;
+  background:linear-gradient(180deg,#0f172a,#020617);
+
+}
+
+
+/* SIDEBAR */
+.customer-sidebar{
+
+  width:260px;
+  background:#020617;
+
+  border-right:1px solid rgba(255,255,255,0.05);
+
+  padding:22px 16px;
+
+}
+
+
+/* HEADER */
+.customer-sidebar-header{
+
+  margin-bottom:24px;
+
+}
+
+
+.customer-sidebar-logo{
+
+  font-size:16px;
+  font-weight:600;
+
+  color:#e2e8f0;
+
+}
+
+
+.customer-sidebar-user{
+
+  font-size:13px;
+  color:#64748b;
+
+  margin-top:4px;
+
+}
+
+
+/* NAV */
+.customer-sidebar-nav{
+
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+
+}
+
+
+/* LINKS */
+.customer-sidebar-link{
+
+  padding:12px 14px;
+
+  border-radius:10px;
+
+  font-size:14px;
+
+  color:#94a3b8;
+
+  cursor:pointer;
+
+  transition:all .15s ease;
+
+}
+
+
+.customer-sidebar-link:hover{
+
+  background:rgba(255,255,255,0.04);
+  color:#e2e8f0;
+
+}
+
+
+.customer-sidebar-link.active{
+
+  background:linear-gradient(90deg,#10b98133,#10b98111);
+  color:#10b981;
+
+  font-weight:600;
+
+}
+
+
+.customer-sidebar-link[data-page="customer-logout"]{
+
+  margin-top:auto;
+  color:#f87171;
+
+}
+
+
+/* MAIN CONTENT */
+.customer-main-content{
+
+  flex:1;
+  padding:32px;
+
+}
+
+
+.customer-page-container{
+
+  max-width:1200px;
+
+}

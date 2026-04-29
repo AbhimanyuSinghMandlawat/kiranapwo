@@ -1,0 +1,120 @@
+/* ===== Margin indicator (Opening Inventory) ===== */
+
+.margin {
+  font-weight: 600;
+  text-align: right;
+  letter-spacing: 0.3px;
+}
+
+.margin.profit {
+  color: #22c55e;   /* profit green */
+}
+
+.margin.loss {
+  color: #ef4444;   /* loss red */
+}
+.opening-stock {
+  display: flex;
+  justify-content: center;
+  padding: 40px;
+}
+
+.stock-card {
+  width: 1100px;
+  background: #0f172a;
+  border-radius: 16px;
+  padding: 28px;
+  box-shadow: 0 10px 35px rgba(0,0,0,.35);
+}
+
+.table-wrapper {
+  overflow: auto;
+  border-radius: 10px;
+  background: #020617;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th {
+  text-align: left;
+  padding: 14px;
+  background: #020617;
+  font-weight: 600;
+  color: #94a3b8;
+  border-bottom: 1px solid #1e293b;
+}
+
+td {
+  padding: 8px;
+  border-bottom: 1px solid #1e293b;
+}
+.opening-wrapper{
+  max-width:1050px;
+  margin:40px auto;
+}
+.opening-card{
+  background:var(--surface-2);
+  border-radius:14px;
+  padding:28px;
+  box-shadow:0 10px 30px rgba(0,0,0,.35);
+}
+
+
+
+.opening-header h1{
+  margin:0;
+  color:var(--text-main);
+}
+
+.opening-header p{
+  color:var(--text-muted);
+  margin-top:6px;
+}
+
+.inventory-table{
+  width:100%;
+  border-collapse:separate;
+  border-spacing:0 12px;
+  margin-top:24px;
+}
+
+.inventory-table thead th{
+  text-align:left;
+  font-size:13px;
+  color:var(--text-muted);
+  font-weight:500;
+}
+
+.inventory-table tbody tr{
+  background:var(--surface-3);
+  border-radius:10px;
+}
+
+.inventory-table td{
+  padding:10px 10px;
+}
+
+.inventory-table input{
+  width:100%;
+  background:var(--input-bg);
+  border:1px solid var(--border-subtle);
+  color:var(--text-main);
+  padding:10px;
+  border-radius:8px;
+  outline:none;
+}
+
+.inventory-table input:focus{
+  border-color:var(--input-focus);
+  box-shadow:0 0 0 2px rgba(34,197,94,.2);
+}
+
+.table-actions{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-top:20px;
+}

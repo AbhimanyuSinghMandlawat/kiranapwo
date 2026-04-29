@@ -1,0 +1,85 @@
+.coupon-grid {
+
+  display: grid;
+  grid-template-columns: repeat(auto-fill,minmax(260px,1fr));
+  gap: 16px;
+
+}
+
+.coupon-card {
+
+  position: relative;
+  padding: 18px;
+
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.08);
+
+}
+
+.coupon-header {
+
+  display:flex;
+  justify-content:space-between;
+  margin-bottom:12px;
+
+}
+
+.coupon-code {
+
+  font-family: monospace;
+  opacity:0.8;
+
+}
+
+.coupon-discount {
+
+  font-size: 28px;
+  font-weight: bold;
+
+}
+
+.premium {
+  padding: 22px;
+  border-radius: 18px;
+  background: linear-gradient(145deg, #111827, #1f2937);
+  box-shadow: 0 15px 40px rgba(0,0,0,0.4);
+  transition: all .3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.premium:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 25px 60px rgba(0,0,0,0.6);
+}
+
+.premium.silver {
+  border: 1px solid #94a3b8;
+}
+
+.premium.gold {
+  border: 1px solid #facc15;
+}
+
+.premium.platinum {
+  border: 1px solid #a5f3fc;
+}
+
+.coupon-badge {
+  background: rgba(255,255,255,0.1);
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+}
+
+.coupon-main h2 {
+  font-size: 32px;
+  margin: 12px 0 6px;
+  font-weight: 700;
+}
+
+.coupon-code {
+  margin-top: 14px;
+  font-family: monospace;
+  opacity: .8;
+}

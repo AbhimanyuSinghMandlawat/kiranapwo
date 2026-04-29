@@ -1,0 +1,15 @@
+/* =====================================================
+   NETWORK STATUS
+   ===================================================== */
+.network-status {
+  font-size: 12px;
+  margin-bottom: 0.5rem;
+}
+
+.network-status.online {
+  color: var(--success);
+}
+
+.network-status.offline {
+  color: var(--warning);
+}

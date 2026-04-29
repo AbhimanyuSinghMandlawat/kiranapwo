@@ -1,0 +1,193 @@
+/* =====================================================
+   GLOBAL BUTTON FOUNDATION
+   Applies to ALL buttons everywhere
+===================================================== */
+
+button {
+  font-family: inherit;
+  border-radius: 12px;
+  padding: 10px 16px;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+  letter-spacing: .2px;
+
+  transition:
+    transform .16s ease,
+    box-shadow .16s ease,
+    background .16s ease,
+    color .16s ease,
+    border-color .16s ease;
+
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* tap feedback for mobile */
+button:active {
+  transform: scale(.97);
+}
+
+
+/* =====================================================
+   PRIMARY ACTION (Save / Add / Confirm)
+===================================================== */
+
+.btn-primary {
+  background: linear-gradient(135deg,#22c55e,#10b981);
+  color: white;
+  box-shadow: 0 4px 14px rgba(16,185,129,.25);
+}
+
+.btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 22px rgba(16,185,129,.35);
+}
+
+.btn-primary:active {
+  transform: translateY(0) scale(.97);
+}
+
+/* full width variant */
+.btn-primary.full-width {
+  width: 100%;
+  padding: 14px 18px;
+  border-radius: 14px;
+  font-weight: 600;
+}
+
+
+/* =====================================================
+   SECONDARY ACTION (View / Open / Neutral actions)
+===================================================== */
+
+.btn-secondary {
+  background: rgba(255,255,255,.08);
+  color: #e5e7eb;
+  border: 1px solid rgba(255,255,255,.14);
+}
+
+.btn-secondary:hover {
+  background: rgba(255,255,255,.14);
+  transform: translateY(-1px);
+}
+
+
+/* =====================================================
+   DANGER ACTION (Delete / Remove)
+===================================================== */
+
+.btn-danger {
+  background: #ef4444;
+  color: white;
+  box-shadow: 0 4px 14px rgba(239,68,68,.25);
+}
+
+.btn-danger:hover {
+  background: #dc2626;
+  box-shadow: 0 8px 22px rgba(239,68,68,.35);
+}
+
+
+/* =====================================================
+   OPTION / TOGGLE BUTTONS (Payment, Mode Switch)
+===================================================== */
+
+.btn-option {
+  padding: 12px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.18);
+  background: transparent;
+  color: #cbd5e1;
+  font-size: 14px;
+}
+
+.btn-option:hover {
+  border-color: #10b981;
+  transform: translateY(-1px);
+}
+
+.btn-option.active {
+  background: rgba(16,185,129,.15);
+  color:#34d399;
+  border-color:#10b981;
+  box-shadow: 0 6px 18px rgba(34,197,94,.35);
+}
+
+.btn-option.active:active {
+  transform: scale(.96);
+}
+
+
+/* =====================================================
+   PAYMENT GRID
+===================================================== */
+
+.payment-options {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin: 12px 0 18px;
+}
+
+
+/* =====================================================
+   MODAL BUTTON GROUP
+===================================================== */
+
+.confirm-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
+
+/* =====================================================
+   DISABLED STATE (global — fixes random white buttons)
+===================================================== */
+
+button:disabled,
+button.disabled {
+  opacity: .05;
+  background: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.5);
+  border: 1px solid rgba(255,255,255,0.15);
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+
+/* =====================================================
+   SMALL BUTTON (table actions / stock controls)
+===================================================== */
+
+.btn-sm {
+  padding: 6px 10px;
+  font-size: 13px;
+  border-radius: 8px;
+}
+
+
+/* =====================================================
+   LANGUAGE SWITCH (styled chips)
+===================================================== */
+
+.lang-switch button {
+  padding: 6px 12px;
+  font-size: 12px;
+  border-radius: 999px;
+  background: transparent;
+  color: #94a3b8;
+  border: 1px solid transparent;
+}
+
+.lang-switch button:hover {
+  background: rgba(255,255,255,.08);
+}
+
+.lang-switch button.active {
+  background: #22c55e;
+  color: white;
+  border-color: #22c55e;
+}
