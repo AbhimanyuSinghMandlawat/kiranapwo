@@ -7,7 +7,8 @@ import {
 } from "../services/db";
 import { showToast } from "../utils/toast";
 
-const API_BASE = "http://localhost:5000";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
+
 
 export async function renderBillScanner(container) {
   const settings = await getShopSettings();
@@ -246,8 +247,8 @@ export async function renderBillScanner(container) {
       const isNetwork = err.name === "TypeError" || err.message.includes("fetch");
       showScanError(
         isNetwork
-          ? " Cannot reach backend - make sure it is running on port 5000."
-          : " Unexpected error: " + err.message,
+          ? "⚠️ Cannot reach backend. Check your internet connection or reconnect in Shop Settings."
+          : "⚠️ Unexpected error: " + err.message,
         isNetwork ? "NETWORK_ERROR" : "UNKNOWN"
       );
     }

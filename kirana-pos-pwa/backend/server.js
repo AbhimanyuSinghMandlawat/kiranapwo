@@ -1,4 +1,4 @@
-﻿const dotenv = require("dotenv");
+const dotenv = require("dotenv");
 const envPath = __dirname + "/.env";
 const result = dotenv.config({ path: envPath, debug: true });
 
@@ -30,7 +30,9 @@ const JWTSECRET = process.env.JWTSECRET;
 const PORT = process.env.PORT || 5000;
 
 const allowedOrigins = (process.env.CORS_ORIGIN || "")
-  .split(",").map((s) => s.trim()).filter(Boolean);
+  .split(",")
+  .map((s) => s.trim())
+  .filter(Boolean);
 
 const fallbackOrigins = [
   "http://localhost:5173",
@@ -50,11 +52,12 @@ app.use(cors({
     if (corsOrigins.includes(origin)) return callback(null, true);
     return callback(new Error(`CORS blocked for origin: ${origin}`));
   },
-  methods: ["GET", "POST", "PUT", "DELETE"],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true
 }));
 
-app.use(express.json({ limit: "50mb" }));
+app.options("*", cors());
 
 const uploadsDir = path.join(__dirname, "uploads");
 if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir);
@@ -83,6 +86,17 @@ function query(sql, params = []) {
 
 async function ensureExtraTables() {
   await query(`
+    CREATE TABLE IF NOT EXISTS shops (
+      id            INT           AUTO_INCREMENT PRIMARY KEY,
+      shop_name     VARCHAR(150)  NOT NULL,
+      owner_name    VARCHAR(120)  NOT NULL,
+      owner_phone   VARCHAR(20)   NOT NULL UNIQUE,
+      owner_email   VARCHAR(120),
+      owner_mobile  VARCHAR(20),
+      password_hash VARCHAR(255)  NOT NULL,
+      created_at    TIMESTAMP     DEFAULT CURRENT_TIMESTAMP
+    );
+
     CREATE TABLE IF NOT EXISTS suppliers (
       id           VARCHAR(64)  PRIMARY KEY,
       shop_id      INT          NOT NULL,
@@ -196,10 +210,30 @@ const scanLimiter = rateLimit(5, 60 * 1000);
 
 // ─── REGISTER ────────────────────────────────────────────────────────────────
 app.post("/api/register", async (req, res) => {
-  const { shopname, ownername, ownerphone, owneremail, ownermobile, password } = req.body;
+  console.log("[DEBUG] Registration request:", req.body);
 
-  if (!shopname || !ownername || !ownerphone || !password)
-    return res.status(400).json({ message: "Missing required fields" });
+  // Handle both shopname (new) and shop_name (old/alternate)
+  const shopname = req.body.shopname || req.body.shop_name;
+  const ownername = req.body.ownername || req.body.owner_name;
+  const ownerphone = req.body.ownerphone || req.body.owner_phone;
+  const owneremail = req.body.owneremail || req.body.owner_email;
+  const ownermobile = req.body.ownermobile || req.body.owner_mobile;
+  const password = req.body.password;
+
+  if (!shopname || !ownername || !ownerphone || !password) {
+    const missing = [];
+    if (!shopname) missing.push("shopname");
+    if (!ownername) missing.push("ownername");
+    if (!ownerphone) missing.push("ownerphone");
+    if (!password) missing.push("password");
+
+    console.warn("[DEBUG] Registration failed - Missing fields:", missing);
+    return res.status(400).json({
+      message: "Missing required fields",
+      missing,
+      receivedKeys: Object.keys(req.body)
+    });
+  }
 
   try {
     const hash = await bcrypt.hash(password, 10);
@@ -208,12 +242,14 @@ app.post("/api/register", async (req, res) => {
        VALUES (?,?,?,?,?,?)`,
       [shopname, ownername, ownerphone, owneremail || null, ownermobile || null, hash]
     );
+
     res.json({ message: "Shop registered", shopid: result.insertId });
   } catch (err) {
-    if (err.code === "ER_DUP_ENTRY")
-      return res.status(409).json({ message: "Phone already registered" });
-    console.error(err);
-    res.status(500).json({ message: "Database error", detail: err.message });
+    console.error("[REGISTER ERROR]", err);
+    if (err.code === "ER_DUP_ENTRY") {
+      return res.status(409).json({ message: "Phone number already registered" });
+    }
+    res.status(500).json({ message: "Database error during registration", detail: err.message });
   }
 });
 
@@ -224,7 +260,12 @@ app.post("/api/auth/register", (req, res, next) => {
 
 // ─── LOGIN ────────────────────────────────────────────────────────────────────
 app.post("/api/login", loginLimiter, async (req, res) => {
-  const { ownerphone, password } = req.body;
+  const ownerphone = req.body.ownerphone || req.body.owner_phone;
+  const password = req.body.password;
+
+  if (!ownerphone || !password) {
+    return res.status(400).json({ message: "Phone and password are required" });
+  }
 
   try {
     const rows = await query("SELECT * FROM shops WHERE owner_phone = ?", [ownerphone]);
@@ -758,6 +799,21 @@ app.get("/api/bill-records", auth, async (req, res) => {
     res.status(500).json({ message: "DB error", detail: err.message });
   }
 });
+
+// Serve static files from the React app
+const distPath = path.join(__dirname, "../kirana-pos/dist");
+if (fs.existsSync(distPath)) {
+  app.use(express.static(distPath));
+  console.log(`[INFO] Serving frontend from ${distPath}`);
+
+  // Catch-all for SPA routing
+  app.get("/{*any}", (req, res, next) => {
+    if (req.path.startsWith("/api")) return next();
+    res.sendFile(path.join(distPath, "index.html"));
+  });
+} else {
+  console.log(`[WARN] Frontend dist folder not found at ${distPath}. Run 'npm run build' in the frontend folder if you want the backend to serve it.`);
+}
 
 // ─── START ────────────────────────────────────────────────────────────────────
 ensureExtraTables()

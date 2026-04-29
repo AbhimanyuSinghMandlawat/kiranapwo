@@ -1,7 +1,11 @@
 import { openDB } from "./db";
 import { getShopSettings } from "./db";
 
-const API_BASE = "http://localhost:5000";
+// In production (Vercel) /api/* is proxied to Render via vercel.json.
+// In local dev /api/* is proxied to localhost:5000 via vite.config.js.
+// Empty string = relative URL → works in both environments.
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
+
 const MAX_RETRIES = 5;  // abandon item after 5 consecutive failures
 
 /* -------------------------------------------------------

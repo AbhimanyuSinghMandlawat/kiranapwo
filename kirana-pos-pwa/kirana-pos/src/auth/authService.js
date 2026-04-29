@@ -11,7 +11,10 @@ import {
 import { ROLES } from "./roles";
 import { logAudit } from "../services/auditLog";
 
-const API_BASE = "http://localhost:5000";
+// In production (Vercel) the /api/* calls are proxied by vercel.json → Render.
+// In local dev vite.config.js proxies /api/* → localhost:5000.
+// Using a relative base means ZERO hardcoded URLs — works everywhere.
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
 
 // Simple hashing for local auth
 async function hashPassword(password) {
@@ -75,11 +78,16 @@ async function tryBackendLogin(username, password) {
     const data = await loginRes.json();
 
     if (data.token) {
+      const shopId = data.shop?.id || null;
+      // Namespace IndexedDB per shop so accounts never share data
+      if (shopId) {
+        localStorage.setItem("kirana_db_name", `kirana_pos_${shopId}`);
+      }
       await saveShopSettings({
         ...(settings || {}),
         ownerPhone,
         backendToken: data.token,
-        backendShopId: data.shop?.id || null
+        backendShopId: shopId
       });
       console.log("[Auth] Backend token obtained - sync enabled");
     }
@@ -183,11 +191,16 @@ async function tryBackendRegisterAndLogin({
     const data = await loginRes.json();
 
     if (data.token) {
+      const shopId = data.shop?.id || null;
+      // Namespace IndexedDB per shop so accounts never share data
+      if (shopId) {
+        localStorage.setItem("kirana_db_name", `kirana_pos_${shopId}`);
+      }
       const current = await getShopSettings();
       await saveShopSettings({
         ...(current || {}),
         backendToken: data.token,
-        backendShopId: data.shop?.id || null
+        backendShopId: shopId
       });
       console.log("[Auth] Backend token obtained");
     }
@@ -232,6 +245,22 @@ export async function login(username, password) {
 }
 
 export async function logout() {
+  // Clear backend token from settings so the next account gets a fresh token
+  try {
+    const current = await getShopSettings();
+    if (current) {
+      await saveShopSettings({
+        ...current,
+        backendToken: null,
+        backendShopId: null,
+        backendPhone: null
+      });
+    }
+  } catch (e) {
+    console.warn("[Auth] Could not clear backend token on logout:", e.message);
+  }
+  // Remove the shop-scoped DB key so the next login opens a fresh DB namespace
+  localStorage.removeItem("kirana_db_name");
   await clearSession();
   sessionStorage.removeItem("customer_session");
   sessionStorage.removeItem("session");

@@ -4,7 +4,8 @@ import { getSyncStats } from "../services/syncService";
 import { t } from "../i18n/i18n";
 import QRCode from "qrcode";
 
-const API_BASE = "http://localhost:5000";
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
+
 
 export async function renderShopSettings(container) {
   const mc = document.querySelector(".main-content") || container;
@@ -201,12 +202,14 @@ export async function renderShopSettings(container) {
         return;
       }
 
+      const shopId = data.shop?.id || null;
+      if (shopId) localStorage.setItem("kirana_db_name", `kirana_pos_${shopId}`);
       const current = (await getShopSettings()) || {};
       await saveShopSettings({
         ...current,
         backendToken: data.token,
         backendPhone: phone,
-        backendShopId: data.shop?.id
+        backendShopId: shopId
       });
 
       showToast("✅ Cloud sync connected! Data will now sync to MySQL.", "success");
@@ -221,7 +224,8 @@ export async function renderShopSettings(container) {
 
   document.getElementById("btn-disconnect").onclick = async () => {
     const current = (await getShopSettings()) || {};
-    await saveShopSettings({ ...current, backendToken: null, backendPhone: null });
+    await saveShopSettings({ ...current, backendToken: null, backendPhone: null, backendShopId: null });
+    localStorage.removeItem("kirana_db_name");
     showToast("Disconnected from cloud sync.", "info");
     setTimeout(() => renderShopSettings(container), 300);
   };
@@ -281,12 +285,14 @@ export async function renderShopSettings(container) {
         return;
       }
 
+      const shopId = loginData.shop?.id || null;
+      if (shopId) localStorage.setItem("kirana_db_name", `kirana_pos_${shopId}`);
       const current = (await getShopSettings()) || {};
       await saveShopSettings({
         ...current,
         backendToken: loginData.token,
         backendPhone: phone,
-        backendShopId: loginData.shop?.id,
+        backendShopId: shopId,
         shopName
       });
 
